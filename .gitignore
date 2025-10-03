@@ -1,0 +1,79 @@
+# --- SO / Editores ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.iml
+
+# --- Node / Monorepo ---
+**/node_modules/
+**/.eslintcache
+**/.cache/
+**/.turbo/
+**/.parcel-cache/
+**/.pnpm-store/
+
+# --- Logs / PIDs ---
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+**/lerna-debug.log*
+**/logs/
+**/*.log
+**/pids/
+**/*.pid
+**/*.seed
+**/*.pid.lock
+
+# --- Entornos / Credenciales ---
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Vite (frontend)
+**/dist/
+**/.vite/
+**/coverage/
+
+# Build genérico
+**/build/
+**/out/
+**/tmp/
+**/temp/
+
+# NestJS (backend)
+**/dist/
+**/coverage/
+# Si usás TypeORM migraciones compiladas:
+**/migrations/*.js
+**/migrations/*.js.map
+
+# Prisma / SQLite (por si en dev cambiás a sqlite)
+**/prisma/*.db
+**/prisma/*.db-journal
+**/*.sqlite
+**/*.sqlite-journal
+
+# Tests
+**/.nyc_output/
+**/jest-*.json
+**/test-results/
+
+# Storybook (si llegás a usarlo en el front)
+**/storybook-static/
+
+# Next/Remix por si copiás cosas (no afecta)
+**/.next/
+**/.vercel/
+
+# Docker locales (si los usás)
+**/.docker/
+**/.env.docker.local
+
+# Mac quirks adicionales
+.AppleDouble
+.LSOverride
