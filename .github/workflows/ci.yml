@@ -1,5 +1,4 @@
-name: CI
-on: [push, pull_request]
+# .github/workflows/ci.yml (fragmento)
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -8,8 +7,32 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
+      - name: Create .env from secrets
+        run: |
+          cat > .env << 'EOF'
+          NODE_ENV=${{ secrets.NODE_ENV }}
+          PORT=3001
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          JWT_SECRET=change_me
+          MP_ACCESS_TOKEN=${{ secrets.MP_ACCESS_TOKEN }}
+          MP_WEBHOOK_SECRET=${{ secrets.MP_WEBHOOK_SECRET }}
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          SMTP_FROM=${{ secrets.SMTP_FROM }}
+          SMTP_FROM_NAME=${{ secrets.SMTP_FROM_NAME }}
+          EVENT_TITLE=${{ secrets.EVENT_TITLE }}
+          EVENT_DATE=${{ secrets.EVENT_DATE }}
+          VENUE_ADDR=${{ secrets.VENUE_ADDR }}
+          ACCENT=${{ secrets.ACCENT }}
+          BASE_URL_FRONTEND=${{ secrets.BASE_URL_FRONTEND }}
+          BASE_URL_BACKEND=${{ secrets.BASE_URL_BACKEND }}
+          ADMIN_PIN=${{ secrets.ADMIN_PIN }}
+          EOF
       - run: npm ci
       - run: npm run build
+
   frontend:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: frontend } }
@@ -17,5 +40,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
+      - name: Create .env from vars
+        run: |
+          cat > .env << 'EOF'
+          VITE_API_BASE=${{ vars.VITE_API_BASE }}
+          VITE_BRAND_ACCENT=${{ vars.VITE_BRAND_ACCENT }}
+          EOF
       - run: npm ci
       - run: npm run build
