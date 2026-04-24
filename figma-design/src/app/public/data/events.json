@@ -1,0 +1,117 @@
+[
+  {
+    "id": "evt_1",
+    "title": "Noche de Jazz Contemporáneo",
+    "description": "Una velada única con los mejores exponentes del jazz argentino. Disfruta de música en vivo, cócteles especiales y una cena gourmet mientras te sumerges en los ritmos más sofisticados del jazz moderno.",
+    "date": "2024-12-28",
+    "time": "21:00",
+    "duration": 180,
+    "capacity": 150,
+    "ticketsSold": 120,
+    "price": 8500,
+    "image": "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop",
+    "artist": {
+      "id": "artist_1",
+      "name": "Quinteto Buenos Aires",
+      "image": "https://images.unsplash.com/photo-1571974599782-87624638275c?w=150&h=150&fit=crop&crop=face"
+    },
+    "venue": "Sala Principal",
+    "status": "upcoming",
+    "category": "Música",
+    "tags": ["Jazz", "En vivo", "Cena incluida"],
+    "featured": true,
+    "priceCategory": "premium"
+  },
+  {
+    "id": "evt_2",
+    "title": "Exposición: Voces del Río",
+    "description": "Muestra colectiva de artistas del barrio de Barracas. Pinturas, esculturas y fotografías que capturan la esencia del río y la historia porteña en una experiencia visual inmersiva.",
+    "date": "2024-12-30",
+    "time": "19:00",
+    "duration": 240,
+    "capacity": 80,
+    "ticketsSold": 80,
+    "price": 0,
+    "image": "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800&h=600&fit=crop",
+    "artist": {
+      "id": "collective_1",
+      "name": "Colectivo Barracas",
+      "image": "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=150&h=150&fit=crop"
+    },
+    "venue": "Galería Norte",
+    "status": "sold-out",
+    "category": "Arte",
+    "tags": ["Arte local", "Entrada libre", "Inauguración"],
+    "featured": false,
+    "priceCategory": "free"
+  },
+  {
+    "id": "evt_3",
+    "title": "Taller de Cerámica Contemporánea",
+    "description": "Aprende las técnicas fundamentales del modelado en arcilla con un enfoque contemporáneo. Incluye materiales, herramientas y el horneado de tu primera pieza.",
+    "date": "2025-01-12",
+    "time": "15:00",
+    "duration": 180,
+    "capacity": 20,
+    "ticketsSold": 12,
+    "price": 6000,
+    "image": "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&h=600&fit=crop",
+    "artist": {
+      "id": "artist_2",
+      "name": "Elena Morales",
+      "image": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face"
+    },
+    "venue": "Taller Creativo",
+    "status": "upcoming",
+    "category": "Taller",
+    "tags": ["Cerámica", "Principiantes", "Materiales incluidos"],
+    "featured": false,
+    "priceCategory": "standard"
+  },
+  {
+    "id": "evt_4",
+    "title": "Experiencia Gastronómica: Sabores de Buenos Aires",
+    "description": "Un viaje culinario por los sabores más auténticos de la ciudad. Menú de 7 pasos con maridaje de vinos argentinos seleccionados por nuestro sommelier.",
+    "date": "2025-01-18",
+    "time": "20:30",
+    "duration": 150,
+    "capacity": 40,
+    "ticketsSold": 32,
+    "price": 12500,
+    "image": "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop",
+    "artist": {
+      "id": "chef_1",
+      "name": "Chef Martín Álvarez",
+      "image": "https://images.unsplash.com/photo-1583394293214-28a5dd26530c?w=150&h=150&fit=crop&crop=face"
+    },
+    "venue": "Comedor Privado",
+    "status": "upcoming",
+    "category": "Gastronomía",
+    "tags": ["Maridaje", "Vinos argentinos", "Menú degustación"],
+    "featured": true,
+    "priceCategory": "premium"
+  },
+  {
+    "id": "evt_5",
+    "title": "Streaming Live: Proceso Creativo",
+    "description": "Observa en tiempo real el proceso de creación de una obra de arte. Interactúa con el artista, haz preguntas y descubre los secretos detrás de cada pincelada.",
+    "date": "2025-01-25",
+    "time": "20:00",
+    "duration": 90,
+    "capacity": 500,
+    "ticketsSold": 320,
+    "price": 2500,
+    "image": "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&h=600&fit=crop",
+    "artist": {
+      "id": "artist_3",
+      "name": "Sofía Méndez",
+      "image": "https://images.unsplash.com/photo-1485875437342-9b39470b3d95?w=150&h=150&fit=crop&crop=face"
+    },
+    "venue": "Virtual",
+    "status": "upcoming",
+    "category": "Streaming",
+    "tags": ["En vivo", "Interactivo", "Arte digital"],
+    "featured": true,
+    "priceCategory": "standard"
+  }
+]

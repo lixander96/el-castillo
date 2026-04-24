@@ -1,0 +1,86 @@
+[
+  {
+    "id": "res_1",
+    "userId": "user_3",
+    "spaceId": "space_1",
+    "eventType": "Concierto Privado",
+    "date": "2025-01-15",
+    "startTime": "20:00",
+    "duration": 4,
+    "attendees": 100,
+    "equipment": ["Sistema de sonido profesional", "Iluminación LED"],
+    "catering": true,
+    "status": "confirmed",
+    "totalPrice": 85000,
+    "createdAt": "2024-12-10T14:30:00Z",
+    "contactPerson": {
+      "name": "Carlos Mendoza",
+      "email": "carlos@email.com",
+      "phone": "+54 11 1234-5678"
+    },
+    "notes": "Evento de lanzamiento de álbum. Necesitamos setup especial para instrumentos."
+  },
+  {
+    "id": "res_2",
+    "userId": "user_5",
+    "spaceId": "space_2",
+    "eventType": "Exposición Corporativa",
+    "date": "2025-01-22",
+    "startTime": "18:00",
+    "duration": 6,
+    "attendees": 60,
+    "equipment": ["Iluminación para arte", "Sistema de seguridad"],
+    "catering": false,
+    "status": "pending",
+    "totalPrice": 48000,
+    "createdAt": "2024-12-15T09:45:00Z",
+    "contactPerson": {
+      "name": "María González",
+      "email": "maria@empresa.com",
+      "phone": "+54 11 2345-6789"
+    },
+    "notes": "Inauguración de nueva línea de productos. Esperamos 60 invitados VIP."
+  },
+  {
+    "id": "res_3",
+    "userId": "user_4",
+    "spaceId": "space_4",
+    "eventType": "Cena de Gala",
+    "date": "2025-02-01",
+    "startTime": "19:30",
+    "duration": 5,
+    "attendees": 35,
+    "equipment": ["Cocina profesional", "Vajilla premium", "Servicio de catering"],
+    "catering": true,
+    "status": "confirmed",
+    "totalPrice": 120000,
+    "createdAt": "2024-12-20T16:20:00Z",
+    "contactPerson": {
+      "name": "Ana Rodríguez",
+      "email": "ana@fundacion.com",
+      "phone": "+54 11 3456-7890"
+    },
+    "notes": "Cena benéfica anual. Menú vegano para 5 personas. Maridaje con vinos premium."
+  },
+  {
+    "id": "res_4",
+    "userId": "user_2",
+    "spaceId": "space_3",
+    "eventType": "Workshop de Fotografía",
+    "date": "2025-01-28",
+    "startTime": "14:00",
+    "duration": 4,
+    "attendees": 15,
+    "equipment": ["Mesas de trabajo", "Herramientas básicas"],
+    "catering": false,
+    "status": "pending",
+    "totalPrice": 20000,
+    "createdAt": "2024-12-22T11:15:00Z",
+    "contactPerson": {
+      "name": "Laura Fernández",
+      "email": "laura@foto.com",
+      "phone": "+54 11 4567-8901"
+    },
+    "notes": "Taller intensivo de fotografía analógica. Necesitamos cuarto oscuro disponible."
+  }
+]
