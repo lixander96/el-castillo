@@ -1,0 +1,78 @@
+[
+  {
+    "id": "space_1",
+    "name": "Sala Principal",
+    "capacity": 150,
+    "equipment": ["Sistema de sonido profesional", "Iluminación LED", "Proyector 4K", "Escenario elevado", "Aire acondicionado"],
+    "pricePerHour": 15000,
+    "image": "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&h=600&fit=crop",
+    "description": "Nuestro espacio principal, ideal para conciertos, conferencias y eventos corporativos. Con tecnología de punta y excelente acústica.",
+    "features": ["Escenario profesional", "Barra integrada", "Cabina de sonido", "Camerinos"],
+    "availability": {
+      "monday": ["09:00-23:00"],
+      "tuesday": ["09:00-23:00"],
+      "wednesday": ["09:00-23:00"],
+      "thursday": ["09:00-23:00"],
+      "friday": ["09:00-02:00"],
+      "saturday": ["09:00-02:00"],
+      "sunday": ["09:00-23:00"]
+    }
+  },
+  {
+    "id": "space_2",
+    "name": "Galería Norte",
+    "capacity": 80,
+    "equipment": ["Iluminación para arte", "Sistema de seguridad", "Climatización", "Rieles para colgado"],
+    "pricePerHour": 8000,
+    "image": "https://images.unsplash.com/photo-1544967882-a2d18045c7e1?w=800&h=600&fit=crop",
+    "description": "Espacio luminoso y versátil, perfecto para exposiciones de arte, vernissages y eventos culturales.",
+    "features": ["Paredes blancas preparadas", "Entrada independiente", "Depósito", "Sistema de alarma"],
+    "availability": {
+      "monday": ["10:00-22:00"],
+      "tuesday": ["10:00-22:00"],
+      "wednesday": ["10:00-22:00"],
+      "thursday": ["10:00-22:00"],
+      "friday": ["10:00-24:00"],
+      "saturday": ["10:00-24:00"],
+      "sunday": ["10:00-22:00"]
+    }
+  },
+  {
+    "id": "space_3",
+    "name": "Taller Creativo",
+    "capacity": 20,
+    "equipment": ["Mesas de trabajo", "Herramientas básicas", "Lavadero industrial", "Estanterías", "Ventilación"],
+    "pricePerHour": 5000,
+    "image": "https://images.unsplash.com/photo-1572907650073-7c8c9e9be6cc?w=800&h=600&fit=crop",
+    "description": "Espacio equipado para talleres y actividades creativas. Ideal para clases de arte, workshops y actividades educativas.",
+    "features": ["Luz natural", "Almacenamiento", "Pizarrón", "Materiales básicos"],
+    "availability": {
+      "monday": ["09:00-20:00"],
+      "tuesday": ["09:00-20:00"],
+      "wednesday": ["09:00-20:00"],
+      "thursday": ["09:00-20:00"],
+      "friday": ["09:00-20:00"],
+      "saturday": ["09:00-18:00"],
+      "sunday": ["09:00-18:00"]
+    }
+  },
+  {
+    "id": "space_4",
+    "name": "Comedor Privado",
+    "capacity": 40,
+    "equipment": ["Cocina profesional", "Mesa imperial", "Vajilla premium", "Bodega de vinos", "Servicio de catering"],
+    "pricePerHour": 12000,
+    "image": "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop",
+    "description": "Ambiente íntimo y elegante para cenas privadas, degustaciones y eventos gastronómicos exclusivos.",
+    "features": ["Ambiente climatizado", "Sommelier disponible", "Menú personalizable", "Servicio completo"],
+    "availability": {
+      "monday": ["18:00-24:00"],
+      "tuesday": ["18:00-24:00"],
+      "wednesday": ["18:00-24:00"],
+      "thursday": ["18:00-24:00"],
+      "friday": ["18:00-02:00"],
+      "saturday": ["18:00-02:00"],
+      "sunday": ["18:00-24:00"]
+    }
+  }
+]

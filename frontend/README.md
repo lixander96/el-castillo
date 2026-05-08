@@ -1,73 +1,34 @@
-# React + TypeScript + Vite
+# Frontend App Guide
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Status
+- React 18 + Vite application already connected to the El Castillo Barracas API.
+- UI is built with Radix UI primitives, Tailwind utilities, and custom modules under `src/components`.
+- Rol "Control de acceso" disponible para personal de entrada: mismo alcance que un visitante y acceso a escaneo/redencion de tickets.
+- Routing relies on React Router v7; state is handled locally with React hooks and `react-hook-form`.
 
-Currently, two official plugins are available:
+## Environment
+- Ensure `frontend/.env` contains the API base URL and feature flags (this file is tracked for reference).
+- Install dependencies with `npm install` (Node.js 18 recommended).
+- Run `npm run dev` for development and `npm run build` to create the production bundle.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Project layout
+- `src/components/Navigation.tsx` and module folders under `src/components/modules/` drive most feature views.
+- `src/pages/` or `src/routes/` (if present) define page-level wiring.
+- Shared utilities and API helpers live in `src/lib/` or `src/services/`.
+- Styling comes from Tailwind classes plus component-level CSS where required.
 
-## React Compiler
+## Collaboration guardrails
+- Limit edits to the component(s) explicitly called out in the user request. Ask before touching shared navigation, context, hooks, or theme layers.
+- Do not restructure folders, rename routes, or change global providers without prior confirmation.
+- Keep this README and any other context files up to date when changes are approved.
+- Confirm with the user before adding packages or altering the Vite configuration.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Helpful commands
+- `npm run dev`: start the local dev server (usually on http://localhost:5173).
+- `npm run build`: compile a production build to `dist/`.
+- `npm run preview`: (if added) serve the built bundle locally.
 
-## Expanding the ESLint configuration
+## UI reference
+- Design source: https://www.figma.com/design/lGEVkClNDcUQTKjUtA2Zjl/Frontend-App-ElCastilloBarracas.
+- Consult `frontend/.env` and the backend README for required API endpoints.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
