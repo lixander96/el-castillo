@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -58,8 +59,24 @@ const navigationItems = [
 
 export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
   const { currentRole, currentUser, theme, toggleTheme, logout } = useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('login') === '1' && currentRole === 'publico') {
+      setShowLoginModal(true);
+    }
+  }, [searchParams, currentRole]);
+
+  const closeLoginModal = () => {
+    setShowLoginModal(false);
+    if (searchParams.has('login')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('login');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   console.log(currentRole)
 
@@ -216,9 +233,9 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
 
       </div>
       
-      <LoginModal 
-        isOpen={showLoginModal} 
-        onClose={() => setShowLoginModal(false)} 
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={closeLoginModal}
       />
     </nav>
   );

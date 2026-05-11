@@ -17,7 +17,6 @@ import { Reservas } from './components/modules/Reservas';
 import { Streaming } from './components/modules/Streaming';
 import { DesignSystemDemo } from './DesignSystem/demo';
 import Private from './components/Private';
-import Login from './pages/Login';
 import CouponsManager from './components/modules/CouponsManager';
 import UsersManager from './components/modules/UsersManager';
 import Access from './components/Access';
@@ -29,7 +28,6 @@ const Routes: FC = () => {
       <RRDRoutes>
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/" element={<App />} >
-          <Route path="login" element={<Login />} />
           <Route index element={<Agenda />} />
           <Route path="access" element={<Private><Access /></Private>} />
           <Route path="reservas" element={<Private><Reservas /></Private>} />

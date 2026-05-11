@@ -11,7 +11,7 @@ export default function AuthCallback() {
 
     const run = async () => {
       if (!token) {
-        nav('/login', { replace: true });
+        nav('/?login=1', { replace: true });
         return;
       }
 
@@ -23,7 +23,7 @@ export default function AuthCallback() {
       } catch (error) {
         console.error('Failed to complete Google login', error);
         setAuthToken(undefined);
-        nav('/login', { replace: true });
+        nav('/?login=1', { replace: true });
       }
     };
 
