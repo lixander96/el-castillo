@@ -8,8 +8,11 @@ WORKDIR /app
 # Copiar archivos de dependencias
 COPY package*.json ./
 
-# Instalar dependencias
-RUN npm ci
+# Instalar dependencias.
+# --legacy-peer-deps porque react-qr-reader@3.0.0-beta-1 declara react@^16||^17
+# como peer y el proyecto usa react@18. Es un conflicto de declaracion, no
+# de runtime; npm 7+ falla en estricto si no lo permitimos explicitamente.
+RUN npm ci --legacy-peer-deps
 
 # Copiar código fuente
 COPY . .
