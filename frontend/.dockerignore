@@ -1,6 +1,6 @@
 node_modules
+build
 dist
-coverage
 .git
 .gitignore
 .env
@@ -12,8 +12,7 @@ npm-debug.log*
 Thumbs.db
 .vscode
 .idea
-README*.md
-backend.zip
-backend_old.zip
-uploads
-test
+frontend.zip
+src_backup.zip
+src_backup_old.zip
+README.md

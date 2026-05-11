@@ -33,6 +33,9 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.local.example
+# Explicitos (los cubre la regla de arriba pero los dejamos por claridad)
+backend/.env
+frontend/.env
 
 # Vite (frontend)
 **/dist/
@@ -73,6 +76,11 @@ Thumbs.db
 # Docker locales (si los usás)
 **/.docker/
 **/.env.docker.local
+
+# Uploads del backend (archivos subidos por usuarios, persisten en volumen Docker).
+# Ignoramos contenidos pero mantenemos el directorio con .gitkeep para dev sin Docker.
+backend/uploads/*
+!backend/uploads/.gitkeep
 
 # Mac quirks adicionales
 .AppleDouble
