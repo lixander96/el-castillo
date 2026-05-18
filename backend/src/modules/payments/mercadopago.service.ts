@@ -19,7 +19,7 @@ export class MercadoPagoService {
     return this.settings.getStatementDescriptor();
   }
 
-  async getWebhookSecret() {
-    return this.settings.getMpWebhookSecret();
+  async getMpUserId() {
+    return this.settings.getMpUserId();
   }
 }

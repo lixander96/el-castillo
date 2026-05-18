@@ -26,6 +26,8 @@ export interface MercadoPagoStatus {
   connected: boolean;
   liveMode: boolean | null;
   userId: string | null;
+  email: string | null;
+  nickname: string | null;
   expiresAt: string | null;
   connectedAt: string | null;
   scope: string | null;
@@ -33,6 +35,7 @@ export interface MercadoPagoStatus {
 
 const MP_TOKEN_URL = 'https://api.mercadopago.com/oauth/token';
 const MP_AUTH_URL = 'https://auth.mercadopago.com/authorization';
+const MP_ME_URL = 'https://api.mercadopago.com/users/me';
 const REFRESH_BUFFER_SECONDS = 300;
 
 @Injectable()
@@ -70,6 +73,8 @@ export class SiteSettingsService {
       connected: !!settings.mpAccessToken,
       liveMode: settings.mpLiveMode,
       userId: settings.mpUserId,
+      email: settings.mpEmail,
+      nickname: settings.mpNickname,
       expiresAt: settings.mpTokenExpiresAt?.toISOString() ?? null,
       connectedAt: settings.mpConnectedAt?.toISOString() ?? null,
       scope: settings.mpScope,
@@ -82,8 +87,14 @@ export class SiteSettingsService {
     return this.repo.save(current);
   }
 
-  async buildAuthorizationUrl(state: string): Promise<string> {
-    const { clientId, redirectUri } = await this.requireOAuthCredentials();
+  oauthIsConfigured(): boolean {
+    const clientId = (this.config.get('MP_OAUTH_CLIENT_ID') || '').trim();
+    const clientSecret = (this.config.get('MP_OAUTH_CLIENT_SECRET') || '').trim();
+    return clientId.length > 0 && clientSecret.length > 0;
+  }
+
+  buildAuthorizationUrl(state: string): string {
+    const { clientId, redirectUri } = this.requireOAuthCredentials();
     const url = new URL(MP_AUTH_URL);
     url.searchParams.set('client_id', clientId);
     url.searchParams.set('response_type', 'code');
@@ -94,7 +105,7 @@ export class SiteSettingsService {
   }
 
   async exchangeCode(code: string): Promise<SiteSettings> {
-    const { clientId, clientSecret, redirectUri } = await this.requireOAuthCredentials();
+    const { clientId, clientSecret, redirectUri } = this.requireOAuthCredentials();
 
     let response;
     try {
@@ -117,7 +128,9 @@ export class SiteSettingsService {
       throw new BadRequestException(`Mercado Pago rechazo el codigo: ${JSON.stringify(detail)}`);
     }
 
-    return this.persistTokenResponse(response.data);
+    const saved = await this.persistTokenResponse(response.data);
+    await this.fetchAndStoreUserInfo(saved);
+    return this.repo.findOne({ where: { id: saved.id } }) as Promise<SiteSettings>;
   }
 
   async disconnect(): Promise<SiteSettings> {
@@ -126,6 +139,8 @@ export class SiteSettingsService {
     settings.mpRefreshToken = null;
     settings.mpPublicKey = null;
     settings.mpUserId = null;
+    settings.mpEmail = null;
+    settings.mpNickname = null;
     settings.mpLiveMode = null;
     settings.mpScope = null;
     settings.mpTokenExpiresAt = null;
@@ -133,14 +148,14 @@ export class SiteSettingsService {
     return this.repo.save(settings);
   }
 
-  async getMpWebhookSecret(): Promise<string | null> {
-    const settings = await this.getOrCreate();
-    return settings.mpWebhookSecret;
-  }
-
   async getStatementDescriptor(): Promise<string> {
     const settings = await this.getOrCreate();
     return settings.paymentStatementDescriptor || 'EL CASTILLO';
+  }
+
+  async getMpUserId(): Promise<string | null> {
+    const settings = await this.getOrCreate();
+    return settings.mpUserId;
   }
 
   async buildMpClient() {
@@ -156,11 +171,18 @@ export class SiteSettingsService {
     };
   }
 
+  getRedirectUri(): string {
+    return (
+      this.config.get('MP_OAUTH_REDIRECT_URI') ||
+      `${(this.config.get('BACKEND_URL') || '').replace(/\/$/, '')}/payments/mp/oauth/callback`
+    );
+  }
+
   private async getValidAccessToken(): Promise<string> {
     const settings = await this.getOrCreate();
     if (!settings.mpAccessToken) {
       throw new ServiceUnavailableException(
-        'Mercado Pago no esta conectado. Un administrador debe conectar la cuenta desde /configuracion.',
+        'Mercado Pago no esta conectado. Conecta la cuenta desde /configuracion.',
       );
     }
 
@@ -177,7 +199,7 @@ export class SiteSettingsService {
   }
 
   private async refreshAccessToken(settings: SiteSettings): Promise<SiteSettings> {
-    const { clientId, clientSecret } = await this.requireOAuthCredentials(settings);
+    const { clientId, clientSecret } = this.requireOAuthCredentials();
 
     if (!settings.mpRefreshToken) {
       throw new ServiceUnavailableException(
@@ -226,29 +248,35 @@ export class SiteSettingsService {
     return this.repo.save(settings);
   }
 
-  async getRedirectUri(settings?: SiteSettings): Promise<string> {
-    const current = settings ?? (await this.getOrCreate());
-    if (current.mpOAuthRedirectUri && current.mpOAuthRedirectUri.trim().length > 0) {
-      return current.mpOAuthRedirectUri.trim();
+  private async fetchAndStoreUserInfo(settings: SiteSettings): Promise<void> {
+    if (!settings.mpAccessToken) return;
+    try {
+      const { data } = await axios.get(MP_ME_URL, {
+        headers: { Authorization: `Bearer ${settings.mpAccessToken}` },
+        timeout: 10000,
+      });
+      settings.mpEmail = data?.email ?? settings.mpEmail;
+      settings.mpNickname = data?.nickname ?? settings.mpNickname;
+      if (data?.id != null) settings.mpUserId = String(data.id);
+      await this.repo.save(settings);
+    } catch (err) {
+      // No bloqueamos la conexion si el users/me falla; el resto del token es valido.
+      console.warn('No se pudo obtener email/nickname de MP /users/me:', err?.message ?? err);
     }
-    const backend = this.config.get('BACKEND_URL') || '';
-    return `${backend.replace(/\/$/, '')}/payments/mp/oauth/callback`;
   }
 
-  private async requireOAuthCredentials(settings?: SiteSettings): Promise<{
+  private requireOAuthCredentials(): {
     clientId: string;
     clientSecret: string;
     redirectUri: string;
-  }> {
-    const current = settings ?? (await this.getOrCreate());
-    const clientId = current.mpOAuthClientId?.trim();
-    const clientSecret = current.mpOAuthClientSecret?.trim();
+  } {
+    const clientId = (this.config.get('MP_OAUTH_CLIENT_ID') || '').trim();
+    const clientSecret = (this.config.get('MP_OAUTH_CLIENT_SECRET') || '').trim();
     if (!clientId || !clientSecret) {
       throw new ServiceUnavailableException(
-        'Faltan las credenciales OAuth de Mercado Pago. Cargalas en /configuracion (Client ID y Client Secret).',
+        'La plataforma todavia no tiene configurada su app OAuth de Mercado Pago. Avisa al operador.',
       );
     }
-    const redirectUri = await this.getRedirectUri(current);
-    return { clientId, clientSecret, redirectUri };
+    return { clientId, clientSecret, redirectUri: this.getRedirectUri() };
   }
 }

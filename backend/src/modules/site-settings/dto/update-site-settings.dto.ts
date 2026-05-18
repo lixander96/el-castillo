@@ -2,29 +2,6 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateSiteSettingsDto {
-  @ApiPropertyOptional({ description: 'Secreto para verificar webhooks de MP (opcional)' })
-  @IsOptional()
-  @IsString()
-  mpWebhookSecret?: string | null;
-
-  @ApiPropertyOptional({ description: 'Client ID de la app OAuth de Mercado Pago' })
-  @IsOptional()
-  @IsString()
-  mpOAuthClientId?: string | null;
-
-  @ApiPropertyOptional({ description: 'Client Secret de la app OAuth de Mercado Pago' })
-  @IsOptional()
-  @IsString()
-  mpOAuthClientSecret?: string | null;
-
-  @ApiPropertyOptional({
-    description:
-      'URI de redireccion registrada en la app de MP (opcional, default ${BACKEND_URL}/payments/mp/oauth/callback)',
-  })
-  @IsOptional()
-  @IsString()
-  mpOAuthRedirectUri?: string | null;
-
   @ApiPropertyOptional({ description: 'URL del logo para tema claro' })
   @IsOptional()
   @IsString()

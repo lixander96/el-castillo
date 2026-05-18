@@ -665,12 +665,9 @@ export interface PublicSiteSettings {
 
 export interface SiteSettings extends PublicSiteSettings {
   id: string;
-  mpAccessToken: string | null;
-  mpWebhookSecret: string | null;
-  mpOAuthClientId: string | null;
-  mpOAuthClientSecret: string | null;
-  mpOAuthRedirectUri: string | null;
   mpUserId: string | null;
+  mpEmail: string | null;
+  mpNickname: string | null;
   mpLiveMode: boolean | null;
   paymentStatementDescriptor: string;
   createdAt: string;
@@ -681,6 +678,8 @@ export interface MercadoPagoStatus {
   connected: boolean;
   liveMode: boolean | null;
   userId: string | null;
+  email: string | null;
+  nickname: string | null;
   expiresAt: string | null;
   connectedAt: string | null;
   scope: string | null;
@@ -692,10 +691,6 @@ export interface SiteSettingsResponse {
 }
 
 export interface UpdateSiteSettingsPayload {
-  mpWebhookSecret?: string | null;
-  mpOAuthClientId?: string | null;
-  mpOAuthClientSecret?: string | null;
-  mpOAuthRedirectUri?: string | null;
   logoLightUrl?: string | null;
   logoDarkUrl?: string | null;
   heroImageUrl?: string | null;

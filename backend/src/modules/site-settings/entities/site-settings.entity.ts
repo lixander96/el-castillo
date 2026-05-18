@@ -15,18 +15,6 @@ export class SiteSettings {
   mpAccessToken: string | null;
 
   @Column({ type: 'text', nullable: true })
-  mpWebhookSecret: string | null;
-
-  @Column({ type: 'text', nullable: true })
-  mpOAuthClientId: string | null;
-
-  @Column({ type: 'text', nullable: true })
-  mpOAuthClientSecret: string | null;
-
-  @Column({ type: 'text', nullable: true })
-  mpOAuthRedirectUri: string | null;
-
-  @Column({ type: 'text', nullable: true })
   mpRefreshToken: string | null;
 
   @Column({ type: 'text', nullable: true })
@@ -34,6 +22,12 @@ export class SiteSettings {
 
   @Column({ type: 'text', nullable: true })
   mpUserId: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  mpEmail: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  mpNickname: string | null;
 
   @Column({ type: 'boolean', nullable: true })
   mpLiveMode: boolean | null;

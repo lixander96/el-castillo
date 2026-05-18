@@ -34,6 +34,10 @@ export interface EnvironmentVariables {
     GOOGLE_CALLBACK_URL: string;
     FRONTEND_URL: string;
     BACKEND_URL: string;
+
+    MP_OAUTH_CLIENT_ID: string;
+    MP_OAUTH_CLIENT_SECRET: string;
+    MP_OAUTH_REDIRECT_URI: string;
 }
 
 export default (): EnvironmentVariables => {
@@ -69,5 +73,11 @@ export default (): EnvironmentVariables => {
         GOOGLE_CALLBACK_URL: process.env['GOOGLE_CALLBACK_URL'],
         FRONTEND_URL: process.env['FRONTEND_URL'] || 'http://localhost:3001',
         BACKEND_URL: process.env['BACKEND_URL'] || 'http://localhost:3000',
+
+        MP_OAUTH_CLIENT_ID: process.env['MP_OAUTH_CLIENT_ID'] || '',
+        MP_OAUTH_CLIENT_SECRET: process.env['MP_OAUTH_CLIENT_SECRET'] || '',
+        MP_OAUTH_REDIRECT_URI:
+            process.env['MP_OAUTH_REDIRECT_URI']
+            || `${process.env['BACKEND_URL'] || 'http://localhost:3000'}/payments/mp/oauth/callback`,
     }
 }

@@ -95,8 +95,17 @@ export class PaymentsController {
       if (type?.includes('payment') && dataId) {
         const payment = await this.mp.getPayment();
         const p = await payment.get({ id: dataId });
-        const orderId = p.external_reference;
 
+        // Sanity check: el collector_id del pago debe coincidir con el mpUserId
+        // de la cuenta conectada en esta instancia. Si no, descartamos el webhook
+        // (caso raro: webhook para otra tienda llego aca por mala config en MP).
+        const expectedCollector = await this.mp.getMpUserId();
+        const collectorId = p.collector_id != null ? String(p.collector_id) : null;
+        if (expectedCollector && collectorId && collectorId !== expectedCollector) {
+          return res.status(200).send('ignored: collector mismatch');
+        }
+
+        const orderId = p.external_reference;
         if (orderId) {
           if (p.status === 'approved') {
             await this.orders.generateTicketsForApprovedOrder(orderId);
