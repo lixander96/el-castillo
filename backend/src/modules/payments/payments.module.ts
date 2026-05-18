@@ -10,6 +10,7 @@ import { EnvironmentVariables } from '../../config/config.configuration';
 
 @Module({
   imports: [
+    ConfigModule,
     OrdersModule,
     SiteSettingsModule,
     JwtModule.registerAsync({
