@@ -82,9 +82,8 @@ export class SiteSettingsService {
     return this.repo.save(current);
   }
 
-  buildAuthorizationUrl(state: string): string {
-    const clientId = this.requireOAuthClientId();
-    const redirectUri = this.getRedirectUri();
+  async buildAuthorizationUrl(state: string): Promise<string> {
+    const { clientId, redirectUri } = await this.requireOAuthCredentials();
     const url = new URL(MP_AUTH_URL);
     url.searchParams.set('client_id', clientId);
     url.searchParams.set('response_type', 'code');
@@ -95,9 +94,7 @@ export class SiteSettingsService {
   }
 
   async exchangeCode(code: string): Promise<SiteSettings> {
-    const clientId = this.requireOAuthClientId();
-    const clientSecret = this.requireOAuthClientSecret();
-    const redirectUri = this.getRedirectUri();
+    const { clientId, clientSecret, redirectUri } = await this.requireOAuthCredentials();
 
     let response;
     try {
@@ -180,8 +177,7 @@ export class SiteSettingsService {
   }
 
   private async refreshAccessToken(settings: SiteSettings): Promise<SiteSettings> {
-    const clientId = this.requireOAuthClientId();
-    const clientSecret = this.requireOAuthClientSecret();
+    const { clientId, clientSecret } = await this.requireOAuthCredentials(settings);
 
     if (!settings.mpRefreshToken) {
       throw new ServiceUnavailableException(
@@ -230,30 +226,29 @@ export class SiteSettingsService {
     return this.repo.save(settings);
   }
 
-  private requireOAuthClientId(): string {
-    const v = this.config.get('MP_OAUTH_CLIENT_ID');
-    if (!v) {
-      throw new ServiceUnavailableException(
-        'MP_OAUTH_CLIENT_ID no esta configurado en el .env del backend.',
-      );
+  async getRedirectUri(settings?: SiteSettings): Promise<string> {
+    const current = settings ?? (await this.getOrCreate());
+    if (current.mpOAuthRedirectUri && current.mpOAuthRedirectUri.trim().length > 0) {
+      return current.mpOAuthRedirectUri.trim();
     }
-    return v;
+    const backend = this.config.get('BACKEND_URL') || '';
+    return `${backend.replace(/\/$/, '')}/payments/mp/oauth/callback`;
   }
 
-  private requireOAuthClientSecret(): string {
-    const v = this.config.get('MP_OAUTH_CLIENT_SECRET');
-    if (!v) {
+  private async requireOAuthCredentials(settings?: SiteSettings): Promise<{
+    clientId: string;
+    clientSecret: string;
+    redirectUri: string;
+  }> {
+    const current = settings ?? (await this.getOrCreate());
+    const clientId = current.mpOAuthClientId?.trim();
+    const clientSecret = current.mpOAuthClientSecret?.trim();
+    if (!clientId || !clientSecret) {
       throw new ServiceUnavailableException(
-        'MP_OAUTH_CLIENT_SECRET no esta configurado en el .env del backend.',
+        'Faltan las credenciales OAuth de Mercado Pago. Cargalas en /configuracion (Client ID y Client Secret).',
       );
     }
-    return v;
-  }
-
-  getRedirectUri(): string {
-    return (
-      this.config.get('MP_OAUTH_REDIRECT_URI') ||
-      `${this.config.get('BACKEND_URL') || ''}/payments/mp/oauth/callback`
-    );
+    const redirectUri = await this.getRedirectUri(current);
+    return { clientId, clientSecret, redirectUri };
   }
 }

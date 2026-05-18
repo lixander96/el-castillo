@@ -18,6 +18,15 @@ export class SiteSettings {
   mpWebhookSecret: string | null;
 
   @Column({ type: 'text', nullable: true })
+  mpOAuthClientId: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  mpOAuthClientSecret: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  mpOAuthRedirectUri: string | null;
+
+  @Column({ type: 'text', nullable: true })
   mpRefreshToken: string | null;
 
   @Column({ type: 'text', nullable: true })

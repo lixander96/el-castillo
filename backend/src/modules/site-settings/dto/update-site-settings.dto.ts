@@ -7,6 +7,24 @@ export class UpdateSiteSettingsDto {
   @IsString()
   mpWebhookSecret?: string | null;
 
+  @ApiPropertyOptional({ description: 'Client ID de la app OAuth de Mercado Pago' })
+  @IsOptional()
+  @IsString()
+  mpOAuthClientId?: string | null;
+
+  @ApiPropertyOptional({ description: 'Client Secret de la app OAuth de Mercado Pago' })
+  @IsOptional()
+  @IsString()
+  mpOAuthClientSecret?: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      'URI de redireccion registrada en la app de MP (opcional, default ${BACKEND_URL}/payments/mp/oauth/callback)',
+  })
+  @IsOptional()
+  @IsString()
+  mpOAuthRedirectUri?: string | null;
+
   @ApiPropertyOptional({ description: 'URL del logo para tema claro' })
   @IsOptional()
   @IsString()

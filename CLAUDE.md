@@ -41,37 +41,31 @@ Para apuntar al backend en local sin pasar por nginx, cambia `VITE_API_URL` en `
 - `TYPEORM_SYNCHRONIZE=false` en prod si ya tenes el esquema estable; pasar a migrations con `npm run migration:run`.
 - `POSTGRES_PASSWORD` y `JWT_SECRET`: regenerarlos antes de prod, **no usar los del ejemplo**.
 
-### Mercado Pago: app OAuth (una sola vez, del lado del operador)
+### Mercado Pago: configuracion 100% por UI
 
-Antes de levantar instancias para clientes, **el operador** (vos) registra
-**una sola app** en https://www.mercadopago.com.ar/developers/panel/app:
+Toda la configuracion de MP vive en la tabla `site_settings` y se maneja
+desde `/configuracion` (visible solo a admins). El `.env` no toca nada de
+MP. Flujo para una instancia nueva:
 
-1. En "URIs de redireccion" agregar
-   `${BACKEND_URL}/payments/mp/oauth/callback` (ej.
-   `https://entradas.ecbamerica.com/api/payments/mp/oauth/callback`).
-2. Copiar `Client ID` y `Client Secret` y ponerlos en el `.env` de cada
-   instancia como `MP_OAUTH_CLIENT_ID` / `MP_OAUTH_CLIENT_SECRET`.
+1. El admin entra a `/configuracion`.
+2. Crea (o reusa) una app en https://www.mercadopago.com.ar/developers/panel/app.
+3. En esa app de MP, registra como "URI de redireccion" la URL que aparece
+   en la UI (`${BACKEND_URL}/payments/mp/oauth/callback`). La UI tiene un
+   boton "Copiar" al lado.
+4. Pega el `Client ID` y `Client Secret` en los inputs de la pantalla y
+   clickea "Guardar cambios".
+5. Click en "Conectar con Mercado Pago" → se loguea en MP con la cuenta
+   que va a recibir los pagos (personal o de negocio, MP elige) → MP
+   redirige de vuelta y queda conectado.
+6. (Opcional) Webhook a configurar en la app de MP: la URL que muestra la
+   UI (`${BACKEND_URL}/mercadopago/webhook`).
 
-Estas credenciales son **a nivel plataforma**, las comparten todas las
-instancias. Cada cliente conecta despues **su propia cuenta MP** via OAuth.
+El refresh del access token es automatico: antes de cada llamada al SDK,
+si el token esta por vencer (< 5min), se renueva via el refresh_token y
+se guarda el nuevo.
 
-### Onboarding de un nuevo cliente
-
-Una vez levantada la instancia, un administrador entra a `/configuracion`
-(visible en el nav solo con rol `ADMIN`) y desde la UI:
-
-- Logo claro / oscuro, imagen hero, favicon, nombre del sitio y tagline.
-- Hace click en "Conectar con Mercado Pago" e inicia sesion en MP con la
-  cuenta (personal o de negocio) que va a recibir los pagos. El access
-  token y refresh token quedan guardados en `site_settings`; el refresh
-  se hace automaticamente antes de cada llamada si el token esta por
-  vencer.
-- (Opcional) pega el webhook secret y configura el webhook en MP con la
-  URL que se muestra en esa misma pantalla.
-
-Hasta que el admin no conecte la cuenta MP, los endpoints
-`POST /payments/checkout` y `POST /payments/process` devuelven 503 con
-mensaje claro.
+Hasta que el admin no conecte la cuenta MP, `POST /payments/checkout` y
+`POST /payments/process` devuelven 503 con mensaje claro.
 
 ### Volumenes persistentes
 
