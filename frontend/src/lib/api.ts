@@ -667,13 +667,28 @@ export interface SiteSettings extends PublicSiteSettings {
   id: string;
   mpAccessToken: string | null;
   mpWebhookSecret: string | null;
+  mpUserId: string | null;
+  mpLiveMode: boolean | null;
   paymentStatementDescriptor: string;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface MercadoPagoStatus {
+  connected: boolean;
+  liveMode: boolean | null;
+  userId: string | null;
+  expiresAt: string | null;
+  connectedAt: string | null;
+  scope: string | null;
+}
+
+export interface SiteSettingsResponse {
+  settings: SiteSettings;
+  mpStatus: MercadoPagoStatus;
+}
+
 export interface UpdateSiteSettingsPayload {
-  mpAccessToken?: string | null;
   mpWebhookSecret?: string | null;
   logoLightUrl?: string | null;
   logoDarkUrl?: string | null;
@@ -689,13 +704,28 @@ export async function fetchPublicSiteSettings(): Promise<PublicSiteSettings> {
   return data;
 }
 
-export async function fetchSiteSettings(): Promise<SiteSettings> {
-  const { data } = await api.get<SiteSettings>('/site-settings');
+export async function fetchSiteSettings(): Promise<SiteSettingsResponse> {
+  const { data } = await api.get<SiteSettingsResponse>('/site-settings');
   return data;
 }
 
 export async function updateSiteSettings(payload: UpdateSiteSettingsPayload): Promise<SiteSettings> {
   const { data } = await api.put<SiteSettings>('/site-settings', payload);
+  return data;
+}
+
+export async function fetchMpStatus(): Promise<MercadoPagoStatus> {
+  const { data } = await api.get<MercadoPagoStatus>('/site-settings/mp/status');
+  return data;
+}
+
+export async function startMpOAuth(): Promise<{ url: string }> {
+  const { data } = await api.get<{ url: string }>('/payments/mp/oauth/start');
+  return data;
+}
+
+export async function disconnectMp(): Promise<MercadoPagoStatus> {
+  const { data } = await api.delete<MercadoPagoStatus>('/site-settings/mp');
   return data;
 }
 

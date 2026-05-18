@@ -41,18 +41,37 @@ Para apuntar al backend en local sin pasar por nginx, cambia `VITE_API_URL` en `
 - `TYPEORM_SYNCHRONIZE=false` en prod si ya tenes el esquema estable; pasar a migrations con `npm run migration:run`.
 - `POSTGRES_PASSWORD` y `JWT_SECRET`: regenerarlos antes de prod, **no usar los del ejemplo**.
 
+### Mercado Pago: app OAuth (una sola vez, del lado del operador)
+
+Antes de levantar instancias para clientes, **el operador** (vos) registra
+**una sola app** en https://www.mercadopago.com.ar/developers/panel/app:
+
+1. En "URIs de redireccion" agregar
+   `${BACKEND_URL}/payments/mp/oauth/callback` (ej.
+   `https://entradas.ecbamerica.com/api/payments/mp/oauth/callback`).
+2. Copiar `Client ID` y `Client Secret` y ponerlos en el `.env` de cada
+   instancia como `MP_OAUTH_CLIENT_ID` / `MP_OAUTH_CLIENT_SECRET`.
+
+Estas credenciales son **a nivel plataforma**, las comparten todas las
+instancias. Cada cliente conecta despues **su propia cuenta MP** via OAuth.
+
 ### Onboarding de un nuevo cliente
 
-Una vez levantada la instancia, un administrador entra a `/configuracion` (visible
-en el nav solo con rol `ADMIN`) y carga desde la UI:
+Una vez levantada la instancia, un administrador entra a `/configuracion`
+(visible en el nav solo con rol `ADMIN`) y desde la UI:
 
 - Logo claro / oscuro, imagen hero, favicon, nombre del sitio y tagline.
-- Access token de Mercado Pago + (opcional) webhook secret. La URL de webhook
-  para pegar en el panel de MP esta visible en esa misma pantalla.
+- Hace click en "Conectar con Mercado Pago" e inicia sesion en MP con la
+  cuenta (personal o de negocio) que va a recibir los pagos. El access
+  token y refresh token quedan guardados en `site_settings`; el refresh
+  se hace automaticamente antes de cada llamada si el token esta por
+  vencer.
+- (Opcional) pega el webhook secret y configura el webhook en MP con la
+  URL que se muestra en esa misma pantalla.
 
-Las credenciales de MP **viven en la tabla `site_settings`** de la DB, no en
-`.env`. Hasta que un admin no las cargue, los endpoints `POST /payments/checkout`
-y `POST /payments/process` devuelven 503.
+Hasta que el admin no conecte la cuenta MP, los endpoints
+`POST /payments/checkout` y `POST /payments/process` devuelven 503 con
+mensaje claro.
 
 ### Volumenes persistentes
 
