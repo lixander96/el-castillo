@@ -41,31 +41,43 @@ Para apuntar al backend en local sin pasar por nginx, cambia `VITE_API_URL` en `
 - `TYPEORM_SYNCHRONIZE=false` en prod si ya tenes el esquema estable; pasar a migrations con `npm run migration:run`.
 - `POSTGRES_PASSWORD` y `JWT_SECRET`: regenerarlos antes de prod, **no usar los del ejemplo**.
 
-### Mercado Pago: configuracion 100% por UI
+### Mercado Pago: app OAuth global + connect por cliente
 
-Toda la configuracion de MP vive en la tabla `site_settings` y se maneja
-desde `/configuracion` (visible solo a admins). El `.env` no toca nada de
-MP. Flujo para una instancia nueva:
+La plataforma usa **una sola app** de Mercado Pago, registrada por vos como
+operador. El Client ID y Secret van en el `.env` de cada deployment y son
+los mismos para todos tus clientes. El cliente (admin de la instancia)
+nunca los ve: solo clickea "Conectar con Mercado Pago" en `/configuracion`
+y autoriza con su mail/pass de MP (personal o de negocio, da igual).
 
-1. El admin entra a `/configuracion`.
-2. Crea (o reusa) una app en https://www.mercadopago.com.ar/developers/panel/app.
-3. En esa app de MP, registra como "URI de redireccion" la URL que aparece
-   en la UI (`${BACKEND_URL}/payments/mp/oauth/callback`). La UI tiene un
-   boton "Copiar" al lado.
-4. Pega el `Client ID` y `Client Secret` en los inputs de la pantalla y
-   clickea "Guardar cambios".
-5. Click en "Conectar con Mercado Pago" → se loguea en MP con la cuenta
-   que va a recibir los pagos (personal o de negocio, MP elige) → MP
-   redirige de vuelta y queda conectado.
-6. (Opcional) Webhook a configurar en la app de MP: la URL que muestra la
-   UI (`${BACKEND_URL}/mercadopago/webhook`).
+**Setup unico de la plataforma (vos):**
 
-El refresh del access token es automatico: antes de cada llamada al SDK,
-si el token esta por vencer (< 5min), se renueva via el refresh_token y
-se guarda el nuevo.
+1. Crear UNA app en https://www.mercadopago.com.ar/developers/panel/app.
+2. En "URIs de redireccion" agregar la URL de cada deployment que tengas:
+   `${BACKEND_URL}/payments/mp/oauth/callback`. Se pueden registrar varias.
+3. En "Webhooks" no hace falta configurar nada a nivel app: cada
+   preferencia que el backend crea ya manda `notification_url` apuntando
+   a `${BACKEND_URL}/mercadopago/webhook` del propio deployment.
+4. Copiar Client ID y Secret al `.env` de cada deployment:
+   `MP_OAUTH_CLIENT_ID` y `MP_OAUTH_CLIENT_SECRET`.
 
-Hasta que el admin no conecte la cuenta MP, `POST /payments/checkout` y
-`POST /payments/process` devuelven 503 con mensaje claro.
+**Por cada cliente nuevo que clones:**
+
+1. Deploy de la app con `.env` propio (DB, JWT, etc) + las creds OAuth de
+   arriba (las mismas para todos).
+2. Agregar el callback URL del nuevo deployment a la app de MP developers.
+3. El admin entra a `/configuracion`, clickea "Conectar con Mercado Pago",
+   se loguea en MP con la cuenta donde quiere recibir los pagos, y listo.
+
+El backend guarda `access_token`, `refresh_token`, `user_id`, `email` y
+`nickname` de la cuenta en `site_settings`. Antes de cada llamada al SDK,
+si el token esta por vencer (< 5min), se refresca automaticamente.
+
+Los webhooks que entran a `${BACKEND_URL}/mercadopago/webhook` se filtran
+por `collector_id` contra el `mpUserId` guardado: cualquier notificacion
+que no sea para la cuenta conectada en esa instancia se descarta.
+
+Hasta que el cliente no conecte una cuenta, `POST /payments/checkout` y
+`POST /payments/process` devuelven 503.
 
 ### Volumenes persistentes
 

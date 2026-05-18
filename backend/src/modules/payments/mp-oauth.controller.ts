@@ -42,7 +42,7 @@ export class MpOAuthController {
       { adminId: req.user.id, purpose: 'mp_oauth' } as OAuthStateClaims,
       { expiresIn: '15m' },
     );
-    const url = await this.settings.buildAuthorizationUrl(state);
+    const url = this.settings.buildAuthorizationUrl(state);
     return { url };
   }
 

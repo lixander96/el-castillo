@@ -80,7 +80,6 @@ export const Agenda: React.FC = () => {
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div>
           <h1>Agenda de Eventos</h1>
-          <p className="text-muted-foreground">Descubre los proximos eventos en El Castillo Barracas.</p>
         </div>
         {/* Filtro */}
         <div className="flex gap-2">
