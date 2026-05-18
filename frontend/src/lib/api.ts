@@ -667,6 +667,9 @@ export interface SiteSettings extends PublicSiteSettings {
   id: string;
   mpAccessToken: string | null;
   mpWebhookSecret: string | null;
+  mpOAuthClientId: string | null;
+  mpOAuthClientSecret: string | null;
+  mpOAuthRedirectUri: string | null;
   mpUserId: string | null;
   mpLiveMode: boolean | null;
   paymentStatementDescriptor: string;
@@ -690,6 +693,9 @@ export interface SiteSettingsResponse {
 
 export interface UpdateSiteSettingsPayload {
   mpWebhookSecret?: string | null;
+  mpOAuthClientId?: string | null;
+  mpOAuthClientSecret?: string | null;
+  mpOAuthRedirectUri?: string | null;
   logoLightUrl?: string | null;
   logoDarkUrl?: string | null;
   heroImageUrl?: string | null;

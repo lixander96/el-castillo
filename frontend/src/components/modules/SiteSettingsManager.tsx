@@ -45,6 +45,9 @@ import {
 type BrandField = keyof Pick<
   SiteSettings,
   | 'mpWebhookSecret'
+  | 'mpOAuthClientId'
+  | 'mpOAuthClientSecret'
+  | 'mpOAuthRedirectUri'
   | 'logoLightUrl'
   | 'logoDarkUrl'
   | 'heroImageUrl'
@@ -58,6 +61,9 @@ type FormState = Record<BrandField, string>;
 
 const initialForm: FormState = {
   mpWebhookSecret: '',
+  mpOAuthClientId: '',
+  mpOAuthClientSecret: '',
+  mpOAuthRedirectUri: '',
   logoLightUrl: '',
   logoDarkUrl: '',
   heroImageUrl: '',
@@ -69,6 +75,9 @@ const initialForm: FormState = {
 
 const settingsToForm = (s: SiteSettings): FormState => ({
   mpWebhookSecret: s.mpWebhookSecret ?? '',
+  mpOAuthClientId: s.mpOAuthClientId ?? '',
+  mpOAuthClientSecret: s.mpOAuthClientSecret ?? '',
+  mpOAuthRedirectUri: s.mpOAuthRedirectUri ?? '',
   logoLightUrl: s.logoLightUrl ?? '',
   logoDarkUrl: s.logoDarkUrl ?? '',
   heroImageUrl: s.heroImageUrl ?? '',
@@ -216,12 +225,19 @@ const SiteSettingsManager: React.FC = () => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const webhookUrl = useMemo(() => {
-    const apiBase = API_URL.startsWith('http')
+  const apiBase = useMemo(() => {
+    const base = API_URL.startsWith('http')
       ? API_URL
       : `${window.location.origin}${API_URL.startsWith('/') ? API_URL : `/${API_URL}`}`;
-    return `${apiBase.replace(/\/$/, '')}/mercadopago/webhook`;
+    return base.replace(/\/$/, '');
   }, []);
+
+  const webhookUrl = useMemo(() => `${apiBase}/mercadopago/webhook`, [apiBase]);
+  const defaultRedirectUri = useMemo(() => `${apiBase}/payments/mp/oauth/callback`, [apiBase]);
+  const redirectUri = form.mpOAuthRedirectUri.trim() || defaultRedirectUri;
+
+  const oauthCredsReady =
+    form.mpOAuthClientId.trim().length > 0 && form.mpOAuthClientSecret.trim().length > 0;
 
   const copyWebhook = async () => {
     try {
@@ -229,6 +245,15 @@ const SiteSettingsManager: React.FC = () => {
       toast.success('URL del webhook copiada');
     } catch {
       toast.error('No se pudo copiar la URL');
+    }
+  };
+
+  const copyRedirect = async () => {
+    try {
+      await navigator.clipboard.writeText(redirectUri);
+      toast.success('URI de redireccion copiada');
+    } catch {
+      toast.error('No se pudo copiar la URI');
     }
   };
 
@@ -265,6 +290,9 @@ const SiteSettingsManager: React.FC = () => {
     try {
       const payload: UpdateSiteSettingsPayload = {
         mpWebhookSecret: form.mpWebhookSecret.trim() || null,
+        mpOAuthClientId: form.mpOAuthClientId.trim() || null,
+        mpOAuthClientSecret: form.mpOAuthClientSecret.trim() || null,
+        mpOAuthRedirectUri: form.mpOAuthRedirectUri.trim() || null,
         logoLightUrl: form.logoLightUrl.trim() || null,
         logoDarkUrl: form.logoDarkUrl.trim() || null,
         heroImageUrl: form.heroImageUrl.trim() || null,
@@ -391,6 +419,70 @@ const SiteSettingsManager: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="rounded-md border bg-muted/20 p-4 space-y-3">
+            <div>
+              <p className="font-medium">Credenciales de la app OAuth</p>
+              <p className="text-xs text-muted-foreground">
+                Crea una app en{' '}
+                <a
+                  href="https://www.mercadopago.com.ar/developers/panel/app"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  Mercado Pago Developers
+                </a>
+                . Registra la URI de redireccion que se muestra mas abajo y pega aca el Client ID y
+                Client Secret. Despues de guardar vas a poder conectar la cuenta.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Client ID</Label>
+                <Input
+                  value={form.mpOAuthClientId}
+                  onChange={(e) => setField('mpOAuthClientId', e.target.value)}
+                  placeholder="123456789..."
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Client Secret</Label>
+                <Input
+                  value={form.mpOAuthClientSecret}
+                  onChange={(e) => setField('mpOAuthClientSecret', e.target.value)}
+                  placeholder="abc..."
+                  autoComplete="off"
+                  spellCheck={false}
+                  type="password"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>URI de redireccion (registrar en la app de MP)</Label>
+              <div className="flex items-center gap-2">
+                <Input value={redirectUri} readOnly className="font-mono text-sm" />
+                <Button type="button" variant="outline" size="sm" onClick={copyRedirect}>
+                  <Copy className="h-4 w-4 mr-2" /> Copiar
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Si necesitas un valor distinto (ej. dominio temporal), pegalo abajo. Si esta vacio
+                se usa la URL de arriba.
+              </p>
+              <Input
+                value={form.mpOAuthRedirectUri}
+                onChange={(e) => setField('mpOAuthRedirectUri', e.target.value)}
+                placeholder="Opcional: override de la URI de redireccion"
+                className="font-mono text-sm"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Despues de cambiar Client ID o Secret hace falta guardar antes de conectar la cuenta.
+            </p>
+          </div>
+
           {mpStatus?.connected ? (
             <div className="rounded-md border bg-muted/30 p-4 space-y-2">
               <div className="flex items-center gap-2">
@@ -414,7 +506,7 @@ const SiteSettingsManager: React.FC = () => {
                   size="sm"
                   variant="outline"
                   onClick={handleConnect}
-                  disabled={connecting}
+                  disabled={connecting || !oauthCredsReady}
                 >
                   {connecting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Link2 className="h-4 w-4 mr-2" />}
                   Reconectar
@@ -437,10 +529,15 @@ const SiteSettingsManager: React.FC = () => {
                 <span className="font-medium">Cuenta no conectada</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Hasta que conectes Mercado Pago, los pagos van a fallar con un error 503. Vas a ser
-                redirigido a Mercado Pago para iniciar sesion con la cuenta que recibe los pagos.
+                {oauthCredsReady
+                  ? 'Vas a ser redirigido a Mercado Pago para iniciar sesion con la cuenta que recibe los pagos. Hasta que conectes, los pagos fallan con error 503.'
+                  : 'Cargá el Client ID y Client Secret arriba, guardá los cambios y volve a esta pantalla para conectar la cuenta.'}
               </p>
-              <Button type="button" onClick={handleConnect} disabled={connecting}>
+              <Button
+                type="button"
+                onClick={handleConnect}
+                disabled={connecting || !oauthCredsReady}
+              >
                 {connecting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Link2 className="h-4 w-4 mr-2" />}
                 Conectar con Mercado Pago
               </Button>
