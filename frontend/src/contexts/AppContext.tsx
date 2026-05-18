@@ -1,7 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner@2.0.3';
 import { UserRole, User, mockUsers } from '../data/mockData';
 import { Notification, mockNotifications } from '../data/notificationsData';
-import { PublicSiteSettings, fetchPublicSiteSettings, setAuthToken, toUserRole } from '../lib/api';
+import {
+  PublicSiteSettings,
+  fetchPublicSiteSettings,
+  registerUnauthorizedHandler,
+  setAuthToken,
+  toUserRole,
+} from '../lib/api';
 
 interface AppContextType {
   currentRole: UserRole;
@@ -61,6 +68,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [siteSettings, setSiteSettings] = useState<PublicSiteSettings | null>(null);
+  const sessionExpiredNotifiedRef = useRef(false);
 
   const refreshSiteSettings = async () => {
     try {
@@ -173,6 +181,31 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const logout = () => {
     setSession(null, undefined);
   };
+
+  useEffect(() => {
+    registerUnauthorizedHandler(() => {
+      setSession(null, undefined);
+
+      if (sessionExpiredNotifiedRef.current) return;
+      sessionExpiredNotifiedRef.current = true;
+
+      toast.info('Tu sesion expiro. Volve a iniciar sesion.');
+
+      const url = new URL(window.location.href);
+      const alreadyPrompting = url.searchParams.get('login') === '1';
+      if (!alreadyPrompting) {
+        url.searchParams.set('login', '1');
+        window.setTimeout(() => {
+          window.location.assign(url.toString());
+        }, 600);
+      } else {
+        window.setTimeout(() => {
+          sessionExpiredNotifiedRef.current = false;
+        }, 3000);
+      }
+    });
+    return () => registerUnauthorizedHandler(null);
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 

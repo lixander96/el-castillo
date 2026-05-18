@@ -21,6 +21,39 @@ export function setAuthToken(token?: string) {
 const t = localStorage.getItem('token');
 if (t) setAuthToken(t);
 
+let unauthorizedHandler: (() => void) | null = null;
+
+export function registerUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
+const AUTH_BYPASS_PATHS = ['/auth/login', '/auth/register', '/auth/google'];
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const url: string = error?.config?.url ?? '';
+    const isAuthEndpoint = AUTH_BYPASS_PATHS.some((path) => url.includes(path));
+    const hadSession = !!localStorage.getItem('token');
+
+    if (status === 401 && !isAuthEndpoint && hadSession) {
+      if (unauthorizedHandler) {
+        try {
+          unauthorizedHandler();
+        } catch (err) {
+          console.warn('unauthorizedHandler failed', err);
+        }
+      } else {
+        setAuthToken(undefined);
+        localStorage.removeItem('user');
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);
+
 const backendRoleMap: Record<string, UserRole> = {
   ADMIN: 'admin',
   CLIENTE: 'cliente',
