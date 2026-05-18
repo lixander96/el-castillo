@@ -1,10 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner@2.0.3';
 import {
   API_URL,
+  MercadoPagoStatus,
   SiteSettings,
+  SiteSettingsResponse,
   UpdateSiteSettingsPayload,
+  disconnectMp,
   fetchSiteSettings,
+  startMpOAuth,
   updateSiteSettings,
   uploadFile,
 } from '../../lib/api';
@@ -13,13 +18,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
 import { Separator } from '../ui/separator';
-import { Loader2, Copy, Image as ImageIcon, Save, RefreshCw } from 'lucide-react';
+import { Badge } from '../ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
+import {
+  Loader2,
+  Copy,
+  Image as ImageIcon,
+  Save,
+  RefreshCw,
+  Link2,
+  Link2Off,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
 
-type Field = keyof Pick<
+type BrandField = keyof Pick<
   SiteSettings,
-  | 'mpAccessToken'
   | 'mpWebhookSecret'
   | 'logoLightUrl'
   | 'logoDarkUrl'
@@ -30,10 +54,9 @@ type Field = keyof Pick<
   | 'paymentStatementDescriptor'
 >;
 
-type FormState = Record<Field, string>;
+type FormState = Record<BrandField, string>;
 
 const initialForm: FormState = {
-  mpAccessToken: '',
   mpWebhookSecret: '',
   logoLightUrl: '',
   logoDarkUrl: '',
@@ -45,7 +68,6 @@ const initialForm: FormState = {
 };
 
 const settingsToForm = (s: SiteSettings): FormState => ({
-  mpAccessToken: s.mpAccessToken ?? '',
   mpWebhookSecret: s.mpWebhookSecret ?? '',
   logoLightUrl: s.logoLightUrl ?? '',
   logoDarkUrl: s.logoDarkUrl ?? '',
@@ -147,15 +169,21 @@ const ImageField: React.FC<{
 
 const SiteSettingsManager: React.FC = () => {
   const { currentRole, refreshSiteSettings } = useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [form, setForm] = useState<FormState>(initialForm);
+  const [mpStatus, setMpStatus] = useState<MercadoPagoStatus | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchSiteSettings();
-      setForm(settingsToForm(data));
+      const data: SiteSettingsResponse = await fetchSiteSettings();
+      setForm(settingsToForm(data.settings));
+      setMpStatus(data.mpStatus);
     } catch (err) {
       toast.error('No se pudo cargar la configuracion.');
     } finally {
@@ -169,7 +197,22 @@ const SiteSettingsManager: React.FC = () => {
     }
   }, [currentRole, load]);
 
-  const setField = (field: Field, value: string) => {
+  useEffect(() => {
+    const mp = searchParams.get('mp');
+    if (!mp) return;
+    if (mp === 'success') {
+      toast.success('Mercado Pago conectado correctamente.');
+    } else if (mp === 'error') {
+      const detail = searchParams.get('mp_detail');
+      toast.error(`No se pudo conectar Mercado Pago${detail ? `: ${detail}` : '.'}`);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete('mp');
+    next.delete('mp_detail');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const setField = (field: BrandField, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -189,12 +232,38 @@ const SiteSettingsManager: React.FC = () => {
     }
   };
 
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      const { url } = await startMpOAuth();
+      window.location.assign(url);
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message || 'No se pudo iniciar el flujo OAuth de Mercado Pago.';
+      toast.error(message);
+      setConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    setDisconnecting(true);
+    try {
+      const status = await disconnectMp();
+      setMpStatus(status);
+      toast.success('Mercado Pago desconectado.');
+    } catch (err) {
+      toast.error('No se pudo desconectar Mercado Pago.');
+    } finally {
+      setDisconnecting(false);
+      setDisconnectOpen(false);
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
     try {
       const payload: UpdateSiteSettingsPayload = {
-        mpAccessToken: form.mpAccessToken.trim() || null,
         mpWebhookSecret: form.mpWebhookSecret.trim() || null,
         logoLightUrl: form.logoLightUrl.trim() || null,
         logoDarkUrl: form.logoDarkUrl.trim() || null,
@@ -236,13 +305,20 @@ const SiteSettingsManager: React.FC = () => {
     );
   }
 
+  const expiresLabel = mpStatus?.expiresAt
+    ? new Date(mpStatus.expiresAt).toLocaleString('es-AR')
+    : null;
+  const connectedAtLabel = mpStatus?.connectedAt
+    ? new Date(mpStatus.connectedAt).toLocaleString('es-AR')
+    : null;
+
   return (
     <form className="container mx-auto px-4 py-8 max-w-4xl space-y-6" onSubmit={handleSubmit}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Configuracion del sitio</h1>
           <p className="text-sm text-muted-foreground">
-            Marca, identidad visual y credenciales de Mercado Pago.
+            Marca, identidad visual y conexion con Mercado Pago.
           </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={() => load()}>
@@ -310,31 +386,80 @@ const SiteSettingsManager: React.FC = () => {
         <CardHeader>
           <CardTitle>Mercado Pago</CardTitle>
           <CardDescription>
-            Las credenciales se guardan en la base. Pueden ser de produccion o de test (sandbox).
+            Conecta la cuenta de Mercado Pago (personal o de negocio) que va a recibir los pagos. El
+            access token se obtiene y refresca automaticamente, no hace falta copiarlo a mano.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {mpStatus?.connected ? (
+            <div className="rounded-md border bg-muted/30 p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <span className="font-medium">Cuenta conectada</span>
+                {mpStatus.liveMode === true && <Badge variant="default">Live</Badge>}
+                {mpStatus.liveMode === false && <Badge variant="secondary">Sandbox</Badge>}
+              </div>
+              <div className="text-sm text-muted-foreground space-y-1">
+                {mpStatus.userId && (
+                  <div>
+                    User ID de MP: <span className="font-mono">{mpStatus.userId}</span>
+                  </div>
+                )}
+                {connectedAtLabel && <div>Conectada el {connectedAtLabel}.</div>}
+                {expiresLabel && <div>Token vigente hasta {expiresLabel} (se renueva solo).</div>}
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleConnect}
+                  disabled={connecting}
+                >
+                  {connecting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Link2 className="h-4 w-4 mr-2" />}
+                  Reconectar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setDisconnectOpen(true)}
+                  disabled={disconnecting}
+                >
+                  <Link2Off className="h-4 w-4 mr-2" /> Desconectar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-md border bg-muted/30 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-500" />
+                <span className="font-medium">Cuenta no conectada</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Hasta que conectes Mercado Pago, los pagos van a fallar con un error 503. Vas a ser
+                redirigido a Mercado Pago para iniciar sesion con la cuenta que recibe los pagos.
+              </p>
+              <Button type="button" onClick={handleConnect} disabled={connecting}>
+                {connecting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Link2 className="h-4 w-4 mr-2" />}
+                Conectar con Mercado Pago
+              </Button>
+            </div>
+          )}
+
+          <Separator />
+
           <div className="space-y-2">
-            <Label>Access token</Label>
-            <Input
-              value={form.mpAccessToken}
-              onChange={(e) => setField('mpAccessToken', e.target.value)}
-              placeholder="APP_USR-... o TEST-..."
-              autoComplete="off"
-              spellCheck={false}
-              type="password"
-            />
+            <Label>URL del webhook para configurar en MP</Label>
+            <div className="flex items-center gap-2">
+              <Input value={webhookUrl} readOnly className="font-mono text-sm" />
+              <Button type="button" variant="outline" size="sm" onClick={copyWebhook}>
+                <Copy className="h-4 w-4 mr-2" /> Copiar
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground">
-              Buscalo en{' '}
-              <a
-                href="https://www.mercadopago.com.ar/developers/panel/app"
-                target="_blank"
-                rel="noreferrer"
-                className="underline"
-              >
-                tu panel de Mercado Pago
-              </a>
-              {' '}&rarr; Credenciales.
+              Pegala en MP &rarr; Tus integraciones &rarr; tu app &rarr; Webhooks, suscribite al
+              evento <code>payment</code>.
             </p>
           </div>
 
@@ -349,21 +474,6 @@ const SiteSettingsManager: React.FC = () => {
               type="password"
             />
           </div>
-
-          <div className="space-y-2">
-            <Label>URL del webhook para configurar en MP</Label>
-            <div className="flex items-center gap-2">
-              <Input value={webhookUrl} readOnly className="font-mono text-sm" />
-              <Button type="button" variant="outline" size="sm" onClick={copyWebhook}>
-                <Copy className="h-4 w-4 mr-2" /> Copiar
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Pegala en MP &rarr; Tus integraciones &rarr; tu app &rarr; Webhooks, y suscribite al evento <code>payment</code>.
-            </p>
-          </div>
-
-          <Separator />
 
           <div className="space-y-2">
             <Label>Texto en el resumen de la tarjeta</Label>
@@ -386,6 +496,25 @@ const SiteSettingsManager: React.FC = () => {
           Guardar cambios
         </Button>
       </div>
+
+      <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desconectar Mercado Pago</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vas a borrar el token de MP de la plataforma. Los pagos van a fallar hasta que vuelvas
+              a conectar la cuenta. ¿Continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={disconnecting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); void handleDisconnect(); }} disabled={disconnecting}>
+              {disconnecting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Desconectar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 };

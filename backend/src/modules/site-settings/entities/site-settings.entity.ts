@@ -18,6 +18,27 @@ export class SiteSettings {
   mpWebhookSecret: string | null;
 
   @Column({ type: 'text', nullable: true })
+  mpRefreshToken: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  mpPublicKey: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  mpUserId: string | null;
+
+  @Column({ type: 'boolean', nullable: true })
+  mpLiveMode: boolean | null;
+
+  @Column({ type: 'text', nullable: true })
+  mpScope: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  mpTokenExpiresAt: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  mpConnectedAt: Date | null;
+
+  @Column({ type: 'text', nullable: true })
   logoLightUrl: string | null;
 
   @Column({ type: 'text', nullable: true })

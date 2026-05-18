@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SiteSettingsService } from './site-settings.service';
 import { UpdateSiteSettingsDto } from './dto/update-site-settings.dto';
@@ -23,8 +23,10 @@ export class SiteSettingsController {
   @ApiBearerAuth()
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Obtener la configuracion completa (admins)' })
-  get() {
-    return this.service.getOrCreate();
+  async get() {
+    const settings = await this.service.getOrCreate();
+    const mpStatus = await this.service.getMpStatus();
+    return { settings, mpStatus };
   }
 
   @Put()
@@ -34,5 +36,24 @@ export class SiteSettingsController {
   @ApiOperation({ summary: 'Actualizar la configuracion del sitio (admins)' })
   update(@Body() dto: UpdateSiteSettingsDto) {
     return this.service.update(dto);
+  }
+
+  @Get('mp/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Estado de la conexion OAuth con Mercado Pago' })
+  mpStatus() {
+    return this.service.getMpStatus();
+  }
+
+  @Delete('mp')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Desconectar la cuenta de Mercado Pago (admins)' })
+  async disconnectMp() {
+    await this.service.disconnect();
+    return this.service.getMpStatus();
   }
 }

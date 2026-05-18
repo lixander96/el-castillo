@@ -2,12 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateSiteSettingsDto {
-  @ApiPropertyOptional({ description: 'Access token de Mercado Pago' })
-  @IsOptional()
-  @IsString()
-  mpAccessToken?: string | null;
-
-  @ApiPropertyOptional({ description: 'Secreto para verificar webhooks de MP' })
+  @ApiPropertyOptional({ description: 'Secreto para verificar webhooks de MP (opcional)' })
   @IsOptional()
   @IsString()
   mpWebhookSecret?: string | null;
