@@ -41,6 +41,19 @@ Para apuntar al backend en local sin pasar por nginx, cambia `VITE_API_URL` en `
 - `TYPEORM_SYNCHRONIZE=false` en prod si ya tenes el esquema estable; pasar a migrations con `npm run migration:run`.
 - `POSTGRES_PASSWORD` y `JWT_SECRET`: regenerarlos antes de prod, **no usar los del ejemplo**.
 
+### Onboarding de un nuevo cliente
+
+Una vez levantada la instancia, un administrador entra a `/configuracion` (visible
+en el nav solo con rol `ADMIN`) y carga desde la UI:
+
+- Logo claro / oscuro, imagen hero, favicon, nombre del sitio y tagline.
+- Access token de Mercado Pago + (opcional) webhook secret. La URL de webhook
+  para pegar en el panel de MP esta visible en esa misma pantalla.
+
+Las credenciales de MP **viven en la tabla `site_settings`** de la DB, no en
+`.env`. Hasta que un admin no las cargue, los endpoints `POST /payments/checkout`
+y `POST /payments/process` devuelven 503.
+
 ### Volumenes persistentes
 
 - `postgres-data` — datos de Postgres.

@@ -9,6 +9,7 @@ import { OrderItem } from "../modules/orders/entities/order-item.entity";
 import { Ticket } from "../modules/orders/entities/ticket.entity";
 import { Event } from "../modules/events/entities/event.entity";
 import { Coupon } from "../modules/coupons/entities/coupon.entity";
+import { SiteSettings } from "../modules/site-settings/entities/site-settings.entity";
 
 export const databaseProviders = [
     TypeOrmModule.forRootAsync({
@@ -33,6 +34,7 @@ export const databaseProviders = [
                 Ticket,
                 User,      // si la usás
                 Coupon,
+                SiteSettings,
                 // cualquier otra
             ],
         })

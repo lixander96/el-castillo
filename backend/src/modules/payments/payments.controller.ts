@@ -22,7 +22,10 @@ export class PaymentsController {
     const pending = `${process.env.FRONTEND_URL}/?status=pending&orderId=${order.id}`;
     const notificationUrl = `${process.env.BACKEND_URL}/mercadopago/webhook`;
 
-    const pref = await this.mp.preference.create({
+    const preference = await this.mp.getPreference();
+    const statementDescriptor = await this.mp.getStatementDescriptor();
+
+    const pref = await preference.create({
       body: {
         items: order.items.map((i) => ({
           id: i.id,
@@ -36,7 +39,7 @@ export class PaymentsController {
         back_urls: { success, failure, pending },
         auto_return: 'approved',
         notification_url: notificationUrl,
-        statement_descriptor: 'EL CASTILLO',
+        statement_descriptor: statementDescriptor,
       },
     });
 
@@ -58,7 +61,10 @@ export class PaymentsController {
     description?: string;
     payer: { email: string; identification?: { type?: string; number?: string } };
   }) {
-    const res = await this.mp.payment.create({
+    const payment = await this.mp.getPayment();
+    const statementDescriptor = await this.mp.getStatementDescriptor();
+
+    const res = await payment.create({
       body: {
         transaction_amount: Number(dto.transaction_amount),
         token: dto.token,
@@ -68,7 +74,7 @@ export class PaymentsController {
         issuer_id: dto.issuer_id != null ? Number(dto.issuer_id) : undefined,
         payer: { email: dto.payer.email, identification: dto.payer.identification },
         external_reference: dto.orderId,
-        statement_descriptor: 'EL CASTILLO',
+        statement_descriptor: statementDescriptor,
         capture: true,
       },
     });
@@ -87,7 +93,8 @@ export class PaymentsController {
       const dataId = body.data?.id || body.resource?.id || body.id;
 
       if (type?.includes('payment') && dataId) {
-        const p = await this.mp.payment.get({ id: dataId });
+        const payment = await this.mp.getPayment();
+        const p = await payment.get({ id: dataId });
         const orderId = p.external_reference;
 
         if (orderId) {
