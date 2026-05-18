@@ -621,6 +621,51 @@ export async function uploadFile(file: File) {
   return data;
 }
 
+export interface PublicSiteSettings {
+  logoLightUrl: string | null;
+  logoDarkUrl: string | null;
+  heroImageUrl: string | null;
+  faviconUrl: string | null;
+  siteName: string | null;
+  siteTagline: string | null;
+}
+
+export interface SiteSettings extends PublicSiteSettings {
+  id: string;
+  mpAccessToken: string | null;
+  mpWebhookSecret: string | null;
+  paymentStatementDescriptor: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateSiteSettingsPayload {
+  mpAccessToken?: string | null;
+  mpWebhookSecret?: string | null;
+  logoLightUrl?: string | null;
+  logoDarkUrl?: string | null;
+  heroImageUrl?: string | null;
+  faviconUrl?: string | null;
+  siteName?: string | null;
+  siteTagline?: string | null;
+  paymentStatementDescriptor?: string;
+}
+
+export async function fetchPublicSiteSettings(): Promise<PublicSiteSettings> {
+  const { data } = await api.get<PublicSiteSettings>('/site-settings/public');
+  return data;
+}
+
+export async function fetchSiteSettings(): Promise<SiteSettings> {
+  const { data } = await api.get<SiteSettings>('/site-settings');
+  return data;
+}
+
+export async function updateSiteSettings(payload: UpdateSiteSettingsPayload): Promise<SiteSettings> {
+  const { data } = await api.put<SiteSettings>('/site-settings', payload);
+  return data;
+}
+
 export interface TicketValidationResponse {
   valid: boolean;
   reason: 'already_redeemed' | 'order_not_approved' | 'wrong_event' | null;

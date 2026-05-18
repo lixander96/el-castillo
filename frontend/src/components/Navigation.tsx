@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
@@ -10,23 +9,15 @@ import { LoginModal } from './LoginModal';
 import logo_black from 'figma:asset/logo-black.png';
 import logo_white from 'figma:asset/logo-white.png';
 
-import { 
+import {
   Calendar,
-  Building,
-  Gavel,
   User,
-  Palette,
-  UtensilsCrossed,
-  Video,
   BarChart3,
   TicketPercent,
   Users as UsersIcon,
   Sun,
   Moon,
-  AlertTriangle,
-  Layout,
-  FileText,
-  Bell,
+  Settings,
   LogIn,
   Menu,
   LogOut
@@ -39,26 +30,16 @@ interface NavigationProps {
 
 const navigationItems = [
   { id: '/', label: 'Agenda', icon: Calendar, roles: ['publico', 'visitante', 'artista', 'cliente', 'operaciones', 'admin', 'promotor'] },
-  // { id: '/reservas', label: 'Reservas', icon: Building, roles: ['cliente', 'operaciones', 'admin'] },
-  // { id: '/pujas', label: 'Pujas', icon: Gavel, roles: ['cliente', 'operaciones', 'admin'] },
   { id: '/perfil', label: 'Perfil', icon: User, roles: ['visitante', 'artista', 'cliente', 'promotor', 'admin'] },
-  // { id: '/marketplace', label: 'Marketplace', icon: Palette, roles: ['publico', 'visitante', 'artista', 'admin'] },
-  // { id: '/gastronomia', label: 'GastronomÃ­a', icon: UtensilsCrossed, roles: ['publico', 'visitante', 'cliente', 'operaciones', 'admin'] },
-  // { id: '/streaming', label: 'Streaming', icon: Video, roles: ['publico', 'visitante', 'artista', 'admin'] },
-  // { id: '/notificaciones', label: 'Notificaciones', icon: Bell, roles: ['visitante', 'artista', 'cliente', 'operaciones', 'admin'] },
   { id: '/dashboard', label: 'Dashboard', icon: BarChart3, roles: ['admin', 'operaciones'] },
   { id: '/cupones', label: 'Cupones', icon: TicketPercent, roles: ['admin', 'promotor'] },
   { id: '/usuarios', label: 'Usuarios', icon: UsersIcon, roles: ['admin'] },
   { id: '/access/check-in', label: 'Check-in', icon: TicketPercent, roles: ['acceso', 'admin'] },
-
-  // { id: '/arquitectura', label: 'Arquitectura', icon: BarChart3, roles: ['admin'] },
-  // { id: '/readme', label: 'README', icon: FileText, roles: ['admin'] },
-  // { id: '/designsystem', label: 'Design System', icon: Palette, roles: ['admin'] },
-  // { id: '/frames', label: 'Frames', icon: Layout, roles: ['admin'] },
+  { id: '/configuracion', label: 'Configuracion', icon: Settings, roles: ['admin'] },
 ];
 
 export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
-  const { currentRole, currentUser, theme, toggleTheme, logout } = useApp();
+  const { currentRole, currentUser, theme, toggleTheme, logout, siteSettings } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -78,11 +59,14 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
     }
   };
 
-  console.log(currentRole)
-
-  const visibleItems = navigationItems.filter(item => 
+  const visibleItems = navigationItems.filter(item =>
     item.roles.includes(currentRole)
   );
+
+  const logoSrc = theme === 'dark'
+    ? (siteSettings?.logoDarkUrl || logo_white)
+    : (siteSettings?.logoLightUrl || logo_black);
+  const siteName = siteSettings?.siteName || 'El Castillo Barracas';
 
   const UserDropdown = () => (
     <DropdownMenu>
@@ -132,12 +116,12 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
           {/* Logo and Demo Banner */}
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2">
-              <img 
-                src={theme === 'dark' ? logo_white : logo_black} 
-                alt="El Castillo Barracas" 
+              <img
+                src={logoSrc}
+                alt={siteName}
                 className="h-8 md:h-10 w-auto"
               />
-              <h1 className="hidden sm:block text-lg md:text-xl font-bold">El Castillo Barracas</h1>
+              <h1 className="hidden sm:block text-lg md:text-xl font-bold">{siteName}</h1>
             </div>
           </div>
 
@@ -173,9 +157,9 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
               </SheetTrigger>
               <SheetContent side="right" className="w-72">
                 <SheetHeader>
-                  <SheetTitle>NavegaciÃ³n</SheetTitle>
+                  <SheetTitle>Navegación</SheetTitle>
                   <SheetDescription>
-                    Accede a las diferentes secciones de la aplicaciÃ³n
+                    Accede a las diferentes secciones de la aplicación
                   </SheetDescription>
                 </SheetHeader>
                 <div className="mt-6 space-y-2">
@@ -211,14 +195,9 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
                 <span className="hidden sm:inline">Ingresar</span>
               </Button>
             ) : (
-              <>
-                {/* <div className="hidden md:block">
-                  <NotificationCenter onNavigate={onTabChange} />
-                </div> */}
-                <UserDropdown />
-              </>
+              <UserDropdown />
             )}
-            
+
             <Button
               variant="ghost"
               size="sm"
@@ -232,7 +211,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
         </div>
 
       </div>
-      
+
       <LoginModal
         isOpen={showLoginModal}
         onClose={closeLoginModal}
@@ -240,7 +219,3 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
     </nav>
   );
 };
-
-
-
-

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserRole, User, mockUsers } from '../data/mockData';
 import { Notification, mockNotifications } from '../data/notificationsData';
-import { setAuthToken, toUserRole } from '../lib/api';
+import { PublicSiteSettings, fetchPublicSiteSettings, setAuthToken, toUserRole } from '../lib/api';
 
 interface AppContextType {
   currentRole: UserRole;
@@ -17,6 +17,8 @@ interface AppContextType {
   markAllAsRead: () => void;
   refreshNotifications: () => void;
   logout: () => void;
+  siteSettings: PublicSiteSettings | null;
+  refreshSiteSettings: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -58,6 +60,36 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [currentRole, setCurrentRoleState] = useState<UserRole>(() => currentUser?.role ?? 'publico');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [siteSettings, setSiteSettings] = useState<PublicSiteSettings | null>(null);
+
+  const refreshSiteSettings = async () => {
+    try {
+      const data = await fetchPublicSiteSettings();
+      setSiteSettings(data);
+    } catch (err) {
+      console.warn('Failed to load site settings', err);
+    }
+  };
+
+  useEffect(() => {
+    refreshSiteSettings();
+  }, []);
+
+  useEffect(() => {
+    if (!siteSettings) return;
+    if (siteSettings.faviconUrl) {
+      let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = siteSettings.faviconUrl;
+    }
+    if (siteSettings.siteName) {
+      document.title = siteSettings.siteName;
+    }
+  }, [siteSettings]);
 
   // Load notifications when role changes
   useEffect(() => {
@@ -158,6 +190,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     markAllAsRead,
     refreshNotifications,
     logout,
+    siteSettings,
+    refreshSiteSettings,
   };
 
   return (

@@ -14,6 +14,7 @@ import { EventsModule } from './modules/events/events.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
+import { SiteSettingsModule } from './modules/site-settings/site-settings.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { CouponsModule } from './modules/coupons/coupons.module';
     MailerModule,
     WhatsappModule,
     UploadsModule,
+    SiteSettingsModule,
   ],
   controllers: [],
   providers: [],

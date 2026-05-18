@@ -6,7 +6,13 @@ import { useApp } from '../contexts/AppContext';
 
 export const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
-  const { theme } = useApp();
+  const { theme, siteSettings } = useApp();
+
+  const logoSrc = theme === 'dark'
+    ? (siteSettings?.logoDarkUrl || logo_white)
+    : (siteSettings?.logoLightUrl || logo_black);
+  const siteName = siteSettings?.siteName || 'El Castillo Barracas';
+  const siteTagline = siteSettings?.siteTagline || 'Centro Cultural y de Eventos';
 
   return (
     <footer className="bg-card border-t border-border mt-auto">
@@ -15,32 +21,22 @@ export const Footer: React.FC = () => {
           {/* Logo y nombre */}
           <div className="flex items-center gap-3">
             <img
-              src={theme === 'dark' ? logo_white : logo_black}
-              alt="El Castillo Barracas"
+              src={logoSrc}
+              alt={siteName}
               className="h-12 w-auto"
             />
             <div className="text-center">
-              <h3 className="font-bold text-lg">El Castillo Barracas</h3>
-              <p className="text-sm text-muted-foreground">Centro Cultural y de Eventos</p>
+              <h3 className="font-bold text-lg">{siteName}</h3>
+              <p className="text-sm text-muted-foreground">{siteTagline}</p>
             </div>
           </div>
 
           <Separator className="w-full max-w-md" />
 
-          {/* Información de contacto */}
-          <div className="text-center space-y-1">
-            <p className="text-sm text-muted-foreground">
-              Espacio multicultural en el corazón de Barracas
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Eventos • Arte • Gastronomía • Cultura
-            </p>
-          </div>
-
           {/* Copyright */}
           <div className="text-center">
             <p className="text-xs text-muted-foreground">
-              © {currentYear} El Castillo Barracas. Todos los derechos reservados.
+              © {currentYear} {siteName}. Todos los derechos reservados.
             </p>
           </div>
         </div>
