@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
+import { AnalyticsService } from './analytics.service';
+import { AnalyticsController } from './analytics.controller';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Event } from '../events/entities/event.entity';
@@ -16,8 +18,8 @@ import { TicketPdfService } from './ticket-pdf.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Order, OrderItem, Event, TicketType, Ticket, Coupon]), MailerModule, ConfigModule],
-  controllers: [OrdersController, TicketsController],
-  providers: [OrdersService, TicketsService, TicketPdfService],
+  controllers: [OrdersController, TicketsController, AnalyticsController],
+  providers: [OrdersService, TicketsService, TicketPdfService, AnalyticsService],
   exports: [OrdersService, TicketsService],
 })
 export class OrdersModule {}

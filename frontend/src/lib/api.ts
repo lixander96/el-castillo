@@ -639,6 +639,83 @@ export async function createManualOrder(payload: ManualOrderPayload) {
   return data;
 }
 
+export interface AnalyticsRange {
+  from?: string;
+  to?: string;
+  eventId?: string;
+}
+
+export interface AnalyticsOverview {
+  totalRevenue: number;
+  ticketsSold: number;
+  ordersCount: number;
+  averageTicket: number;
+  occupancyPct: number;
+  totalCapacity: number;
+  totalOccupied: number;
+}
+
+export interface DailySalesRow {
+  day: string;
+  ticketsSold: number;
+  revenue: number;
+  orders: number;
+}
+
+export interface PromoterBreakdownRow {
+  couponId: string;
+  code: string;
+  type: CouponType;
+  value: number;
+  commissionRate: number;
+  promoter: { id: number; name: string; email: string } | null;
+  ordersCount: number;
+  ticketsSold: number;
+  netRevenue: number;
+  discountGiven: number;
+  commission: number;
+}
+
+export interface AnalyticsEventOption {
+  id: string;
+  title: string;
+  date: string;
+}
+
+const toAnalyticsParams = (range: AnalyticsRange) => {
+  const params: Record<string, string> = {};
+  if (range.from) params.from = range.from;
+  if (range.to) params.to = range.to;
+  if (range.eventId) params.eventId = range.eventId;
+  return params;
+};
+
+export async function fetchAnalyticsOverview(range: AnalyticsRange) {
+  const { data } = await api.get<AnalyticsOverview>('/analytics/overview', {
+    params: toAnalyticsParams(range),
+  });
+  return data;
+}
+
+export async function fetchAnalyticsDailySales(range: AnalyticsRange) {
+  const { data } = await api.get<DailySalesRow[]>('/analytics/daily-sales', {
+    params: toAnalyticsParams(range),
+  });
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchAnalyticsPromoters(range: AnalyticsRange) {
+  const { data } = await api.get<PromoterBreakdownRow[]>('/analytics/promoters', {
+    params: toAnalyticsParams(range),
+  });
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchAnalyticsEventOptions() {
+  const { data } = await api.get<AnalyticsEventOption[]>('/analytics/events');
+  return Array.isArray(data) ? data : [];
+}
+
 export async function createEvent(payload: EventPayload) {
   const { data } = await api.post<EventResponse>('/events', payload);
   return data;

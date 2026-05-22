@@ -71,6 +71,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import type { Event, TicketType } from '../../data/mockData';
+import AnalyticsDashboard from './AnalyticsDashboard';
 
 type EventStatus = Event['status'];
 
@@ -1068,7 +1069,7 @@ export const Dashboard: React.FC = () => {
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'overview' | 'events' | 'sales'>('overview');
+  const [tab, setTab] = useState<'overview' | 'events' | 'sales' | 'analytics'>('overview');
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [selectedEvent, setSelectedEvent] = useState<AdminEvent | null>(null);
@@ -1206,10 +1207,11 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <TabsList className="grid grid-cols-3 w-full sm:w-auto">
+            <TabsList className="grid grid-cols-4 w-full sm:w-auto">
               <TabsTrigger value="overview">Resumen</TabsTrigger>
               <TabsTrigger value="events">Eventos</TabsTrigger>
               <TabsTrigger value="sales">Ventas</TabsTrigger>
+              <TabsTrigger value="analytics">Analíticas</TabsTrigger>
             </TabsList>
             <Button onClick={openCreateEvent} className="sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
@@ -1574,6 +1576,10 @@ export const Dashboard: React.FC = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <AnalyticsDashboard />
         </TabsContent>
       </Tabs>
 
