@@ -11,12 +11,25 @@ export class PaymentsController {
     private readonly orders: OrdersService,
   ) {}
 
-  // 1) Crear preferencia (Checkout Pro)
+  // 1) Crear preferencia (Checkout Pro) o aprobar orden $0 (Invitación de Honor)
   @ApiOperation({ summary: 'Crear una preferencia de pago (Checkout Pro)' })
   @ApiResponse({ status: 201, description: 'Preferencia creada con exito.' })
   @Post('payments/checkout')
   async checkout(@Body() body: { orderId: string }) {
     const order = await this.orders.findById(body.orderId);
+
+    // Bypass MP para Invitaciones de Honor (total $0): aprobar y generar tickets directamente
+    if (Number(order.totalAmount) <= 0) {
+      const approved = await this.orders.finalizeFreeOrder(order.id);
+      const successUrl = `${process.env.FRONTEND_URL}/?status=success&orderId=${approved.id}`;
+      return {
+        id: approved.id,
+        init_point: successUrl,
+        sandbox_init_point: successUrl,
+        free: true,
+      };
+    }
+
     const success = `${process.env.FRONTEND_URL}/?status=success&orderId=${order.id}`;
     const failure = `${process.env.FRONTEND_URL}/?status=failure&orderId=${order.id}`;
     const pending = `${process.env.FRONTEND_URL}/?status=pending&orderId=${order.id}`;
@@ -25,15 +38,24 @@ export class PaymentsController {
     const preference = await this.mp.getPreference();
     const statementDescriptor = await this.mp.getStatementDescriptor();
 
+    // Distribuir descuento proporcionalmente entre items para que el total coincida
+    const subtotalAmount = Number(order.subtotalAmount ?? order.items.reduce((s, i) => s + Number(i.subtotal ?? 0), 0));
+    const discountAmount = Number(order.discountAmount ?? 0);
+    const ratio = subtotalAmount > 0 && discountAmount > 0 ? (subtotalAmount - discountAmount) / subtotalAmount : 1;
+
     const pref = await preference.create({
       body: {
-        items: order.items.map((i) => ({
-          id: i.id,
-          title: `${i.event.title} - ${i.ticketType.name}`,
-          quantity: i.quantity,
-          currency_id: 'ARS',
-          unit_price: Number(i.unitPrice),
-        })),
+        items: order.items.map((i) => {
+          const baseUnit = Number(i.unitPrice);
+          const adjustedUnit = Math.max(0, Math.round(baseUnit * ratio * 100) / 100);
+          return {
+            id: i.id,
+            title: `${i.event.title} - ${i.ticketType.name}`,
+            quantity: i.quantity,
+            currency_id: 'ARS',
+            unit_price: adjustedUnit,
+          };
+        }),
         payer: order.buyerEmail ? { email: order.buyerEmail } : undefined,
         external_reference: order.id,
         back_urls: { success, failure, pending },

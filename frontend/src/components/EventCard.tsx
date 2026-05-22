@@ -33,18 +33,29 @@ const formatEventDate = (date: string) => {
 };
 
 const statusLabels: Record<string, string> = {
-    upcoming: 'Proximo',
+    upcoming: 'Entradas disponibles',
     'sold-out': 'Agotado',
     cancelled: 'Cancelado',
     'in-progress': 'En curso',
     ended: 'Finalizado',
 };
 const statusColors: Record<string, string> = {
-    upcoming: 'bg-blue-500',
+    upcoming: 'bg-green-500',
     'sold-out': 'bg-red-500',
     cancelled: 'bg-gray-500',
-    'in-progress': 'bg-green-500',
+    'in-progress': 'bg-blue-500',
     ended: 'bg-gray-400',
+};
+
+const isEventFinished = (event: Event) => {
+    if (event.status === 'ended' || event.status === 'cancelled') return event.status;
+    try {
+        const eventDateTime = new Date(`${event.date}T${event.time || '23:59'}:00`);
+        if (!Number.isNaN(eventDateTime.getTime()) && eventDateTime.getTime() < Date.now()) {
+            return 'ended';
+        }
+    } catch { /* ignore */ }
+    return event.status;
 };
 const priceOf = (ticket: TicketType) => {
     const value = (ticket as any)?.price;
@@ -63,13 +74,16 @@ const EventCard: FC<EventCardProps> = ({ event, setShowLoginModal }) => {
         return prices.length ? Math.min(...prices) : 0;
     };
     const minPrice = getMinTicketPrice(event.ticketTypes);
+    const effectiveStatus = isEventFinished(event);
+    const stockAvailable = event.ticketTypes?.some((t: TicketType) => Number(t.available ?? 0) > 0);
+    const displayStatus = effectiveStatus === 'upcoming' && !stockAvailable ? 'sold-out' : effectiveStatus;
     return (
         <>
             <Card key={event.id} className="cursor-pointer overflow-hidden hover:shadow-lg transition-shadow relative" onClick={() => setOpenDialog(true)}>
                 <div className="relative w-full h-full">
                     <ImageWithFallback src={event.image} alt={event.title} className="w-full h-full object-cover" />
-                    <Badge className={`absolute top-4 left-4 ${statusColors[event.status] || 'bg-gray-500'} text-white`}>
-                        {statusLabels[event.status] || event.status}
+                    <Badge className={`absolute top-4 left-4 ${statusColors[displayStatus] || 'bg-gray-500'} text-white`}>
+                        {statusLabels[displayStatus] || displayStatus}
                     </Badge>
                 </div>
                 <div className='absolute opacity-0 hover:opacity-100 w-full h-full overflow-auto bg-card'>
@@ -96,7 +110,14 @@ const EventCard: FC<EventCardProps> = ({ event, setShowLoginModal }) => {
                             </div>
                             <div className="flex items-center gap-2">
                                 <Users className="h-4 w-4 text-muted-foreground" />
-                                <span>{(event.capacity - event.ticketsSold === 0) ? 'Agotado' : (event.capacity - (event.ticketsSold / event.capacity) > 0.1) ? "Entradas disponibles" : 'Quedan pocas'}</span>
+                                <span>
+                                    {displayStatus === 'ended' ? 'Finalizado'
+                                        : displayStatus === 'cancelled' ? 'Cancelado'
+                                        : displayStatus === 'sold-out' ? 'Agotado'
+                                        : (event.capacity - event.ticketsSold) <= 0 ? 'Agotado'
+                                        : (event.capacity - event.ticketsSold) / Math.max(1, event.capacity) > 0.1 ? 'Entradas disponibles'
+                                        : 'Quedan pocas'}
+                                </span>
                             </div>
                         </div>
                         <div className="flex items-center justify-between">

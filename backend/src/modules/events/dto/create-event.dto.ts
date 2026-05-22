@@ -26,10 +26,15 @@ class CreateTicketTypeDto {
   @IsInt()
   total: number;
 
-  @ApiPropertyOptional({ description: 'Tickets ya vendidos para este tipo' })
+  @ApiPropertyOptional({ description: 'Tickets ya vendidos para este tipo (solo lectura, calculado)' })
   @IsInt()
   @IsOptional()
   sold?: number;
+
+  @ApiPropertyOptional({ description: 'Tickets vendidos manualmente (efectivo / puerta)' })
+  @IsInt()
+  @IsOptional()
+  manualSold?: number;
 
   @ApiPropertyOptional({ description: 'Tickets disponibles restantes para este tipo' })
   @IsInt()

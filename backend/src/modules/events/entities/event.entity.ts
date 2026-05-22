@@ -10,6 +10,9 @@ export class Event {
   @Column({ length: 160 })
   title: string;
 
+  @Column({ length: 200, nullable: true, unique: true })
+  slug: string | null;
+
   @Column({ type: 'text' })
   description: string;
 

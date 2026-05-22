@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -40,6 +40,7 @@ const navigationItems = [
 
 export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
   const { currentRole, currentUser, theme, toggleTheme, logout, siteSettings } = useApp();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -115,14 +116,22 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
         <div className="flex items-center justify-between h-16">
           {/* Logo and Demo Banner */}
           <div className="flex items-center gap-2 md:gap-4">
-            <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                navigate('/');
+                onTabChange('/');
+              }}
+              className="flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer"
+              aria-label="Ir al inicio"
+            >
               <img
                 src={logoSrc}
                 alt={siteName}
                 className="h-8 md:h-10 w-auto"
               />
               <h1 className="hidden sm:block text-lg md:text-xl font-bold">{siteName}</h1>
-            </div>
+            </button>
           </div>
 
           {/* Desktop Navigation Items */}

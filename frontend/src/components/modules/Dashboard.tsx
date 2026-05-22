@@ -7,6 +7,7 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
+  createManualOrder,
   EventPayload,
   EventResponse,
   uploadFile,
@@ -70,17 +71,19 @@ import {
   Loader2,
 } from 'lucide-react';
 import type { Event, TicketType } from '../../data/mockData';
+import AnalyticsDashboard from './AnalyticsDashboard';
 
 type EventStatus = Event['status'];
 
 type NormalizedTicketType = Omit<
   TicketType,
-  'description' | 'price' | 'total' | 'sold' | 'available'
+  'description' | 'price' | 'total' | 'sold' | 'available' | 'manualSold'
 > & {
   description?: string | null;
   price: number;
   total: number;
   sold: number;
+  manualSold: number;
   available: number;
   perks?: string[] | null;
 };
@@ -105,6 +108,7 @@ type EventFormTicket = {
   price: string;
   total: string;
   sold: string;
+  manualSold: string;
 };
 
 type EventFormState = {
@@ -147,7 +151,20 @@ const emptyTicket: EventFormTicket = {
   price: '',
   total: '',
   sold: '0',
+  manualSold: '0',
 };
+
+const CATEGORY_OPTIONS = [
+  'Música',
+  'Arte',
+  'Taller',
+  'Entretenimiento',
+  'Gastronomía',
+  'Fiesta',
+  'Cine',
+  'Teatro',
+  'Otro',
+];
 
 const defaultFormState: EventFormState = {
   title: '',
@@ -193,6 +210,7 @@ const normalizeEvent = (event: EventResponse): AdminEvent => {
     const price = numberFrom(ticket.price);
     const total = numberFrom(ticket.total);
     const sold = numberFrom(ticket.sold);
+    const manualSold = numberFrom((ticket as any).manualSold);
     const available =
       ticket.available != null
         ? numberFrom(ticket.available)
@@ -204,6 +222,7 @@ const normalizeEvent = (event: EventResponse): AdminEvent => {
       price,
       total,
       sold,
+      manualSold,
       available,
       perks: ticket.perks ?? null,
     };
@@ -294,6 +313,7 @@ const buildFormState = (event?: AdminEvent | null): EventFormState => {
           price: String(ticket.price ?? ''),
           total: String(ticket.total ?? ''),
           sold: String(ticket.sold ?? 0),
+          manualSold: String(ticket.manualSold ?? 0),
         }))
       : [{ ...emptyTicket }];
 
@@ -453,8 +473,18 @@ const EventFormDialog: React.FC<EventFormDialogProps> = ({
       if (field === 'total') {
         const total = numberFrom(value, 0);
         const sold = numberFrom(current.sold, 0);
-        if (sold > total) {
-          current.sold = String(total);
+        const manualSold = numberFrom(current.manualSold, 0);
+        const used = sold + manualSold;
+        if (manualSold > Math.max(0, total - sold)) {
+          current.manualSold = String(Math.max(0, total - sold));
+        }
+      }
+      if (field === 'manualSold') {
+        const manualSold = numberFrom(value, 0);
+        const total = numberFrom(current.total, 0);
+        const sold = numberFrom(current.sold, 0);
+        if (manualSold + sold > total) {
+          current.manualSold = String(Math.max(0, total - sold));
         }
       }
 
@@ -508,15 +538,15 @@ const EventFormDialog: React.FC<EventFormDialogProps> = ({
     const ticketTypes: EventPayload['ticketTypes'] = form.ticketTypes.map(
       (ticket) => {
         const total = numberFrom(ticket.total, 0);
-        const sold = numberFrom(ticket.sold, 0);
+        const manualSold = numberFrom(ticket.manualSold, 0);
         return {
           id: ticket.id,
           name: ticket.name.trim(),
           description: ticket.description?.trim() || undefined,
           price: numberFrom(ticket.price, 0),
           total,
-          sold,
-          available: Math.max(total - sold, 0),
+          manualSold,
+          available: Math.max(total - manualSold, 0),
         };
       },
     );
@@ -577,13 +607,35 @@ const EventFormDialog: React.FC<EventFormDialogProps> = ({
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">Categoría</Label>
-              <Input
-                id="category"
-                value={form.category}
-                onChange={(event) => updateField('category', event.target.value)}
-                placeholder="Música, Arte, Taller..."
-                required
-              />
+              <Select
+                value={CATEGORY_OPTIONS.includes(form.category) ? form.category : (form.category ? '__custom__' : '')}
+                onValueChange={(value) => {
+                  if (value === '__custom__') {
+                    updateField('category', form.category && !CATEGORY_OPTIONS.includes(form.category) ? form.category : '');
+                  } else {
+                    updateField('category', value);
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(!CATEGORY_OPTIONS.includes(form.category) || form.category === '') && (
+                <Input
+                  id="category-custom"
+                  value={form.category}
+                  onChange={(event) => updateField('category', event.target.value)}
+                  placeholder="Otra categoría"
+                />
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="date">Fecha</Label>
@@ -815,16 +867,32 @@ const EventFormDialog: React.FC<EventFormDialogProps> = ({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Tickets vendidos</Label>
+                      <Label>Ventas web (auto)</Label>
+                      <Input
+                        type="number"
+                        value={ticket.sold}
+                        readOnly
+                        disabled
+                        className="bg-muted cursor-not-allowed"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Calculado en tiempo real desde las órdenes aprobadas.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Ventas manuales (efectivo/puerta)</Label>
                       <Input
                         type="number"
                         min={0}
-                        value={ticket.sold}
+                        value={ticket.manualSold}
                         onChange={(event) =>
-                          updateTicket(index, 'sold', event.target.value)
+                          updateTicket(index, 'manualSold', event.target.value)
                         }
-                        placeholder="Ej: 40"
+                        placeholder="Ej: 5"
                       />
+                      <p className="text-[11px] text-muted-foreground">
+                        Asentá ventas que cobraste fuera de la web para que descuenten del stock.
+                      </p>
                     </div>
                     <div className="md:col-span-2 space-y-2">
                       <Label>Descripción (opcional)</Label>
@@ -855,17 +923,160 @@ const EventFormDialog: React.FC<EventFormDialogProps> = ({
     </Dialog>
   );
 };
+interface ManualTicketDialogProps {
+  open: boolean;
+  event: AdminEvent | null;
+  onOpenChange: (open: boolean) => void;
+  onCreated: () => void;
+}
+
+const ManualTicketDialog: React.FC<ManualTicketDialogProps> = ({ open, event, onOpenChange, onCreated }) => {
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [buyerEmail, setBuyerEmail] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setQuantities({});
+      setBuyerEmail('');
+      setNotes('');
+    }
+  }, [open]);
+
+  if (!event) return null;
+
+  const total = event.ticketTypes.reduce((sum, ticket) => {
+    const qty = quantities[ticket.id ?? ticket.name] || 0;
+    return sum + qty * ticket.price;
+  }, 0);
+
+  const totalTickets = Object.values(quantities).reduce((s, n) => s + n, 0);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (totalTickets <= 0) {
+      toast.error('Selecciona al menos un ticket.');
+      return;
+    }
+    const items = event.ticketTypes
+      .map((ticket) => ({
+        ticketTypeId: ticket.id!,
+        eventId: event.id,
+        quantity: quantities[ticket.id ?? ticket.name] || 0,
+      }))
+      .filter((i) => i.quantity > 0);
+
+    setSubmitting(true);
+    try {
+      await createManualOrder({
+        buyerEmail: buyerEmail.trim() || undefined,
+        notes: notes.trim() || undefined,
+        items,
+      });
+      toast.success('Venta manual registrada. Stock actualizado.');
+      onCreated();
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(errorMessageFrom(err, 'No se pudo registrar la venta manual.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Venta manual · {event.title}</DialogTitle>
+          <DialogDescription>
+            Registra entradas vendidas en efectivo o por fuera de la plataforma. Se descuenta del stock automáticamente.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-3">
+            {event.ticketTypes.map((ticket) => {
+              const key = ticket.id ?? ticket.name;
+              const remaining = Math.max(0, ticket.total - ticket.sold - ticket.manualSold);
+              return (
+                <Card key={key}>
+                  <CardContent className="p-4 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-medium">{ticket.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatCurrency(ticket.price)} · Disponibles: {remaining}
+                      </div>
+                    </div>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={remaining}
+                      value={quantities[key] ?? 0}
+                      onChange={(e) =>
+                        setQuantities((prev) => ({
+                          ...prev,
+                          [key]: Math.min(remaining, Math.max(0, Number(e.target.value) || 0)),
+                        }))
+                      }
+                      className="w-24"
+                    />
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="manual-email">Email del comprador (opcional)</Label>
+            <Input
+              id="manual-email"
+              type="email"
+              placeholder="comprador@ejemplo.com"
+              value={buyerEmail}
+              onChange={(e) => setBuyerEmail(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Si lo agregás, le mandamos el email con el QR.</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="manual-notes">Notas internas</Label>
+            <Textarea
+              id="manual-notes"
+              placeholder="Detalle de la venta (ej. pago en efectivo)"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+            />
+          </div>
+          <div className="rounded-md border bg-muted p-3 flex items-center justify-between">
+            <span className="text-sm font-medium">Total cobrado</span>
+            <span className="text-lg font-semibold">{formatCurrency(total)}</span>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={submitting || totalTickets <= 0}>
+              {submitting ? 'Registrando...' : `Registrar ${totalTickets || 0} ticket${totalTickets === 1 ? '' : 's'}`}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export const Dashboard: React.FC = () => {
   const { currentRole } = useApp();
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'overview' | 'events' | 'sales'>('overview');
+  const [tab, setTab] = useState<'overview' | 'events' | 'sales' | 'analytics'>('overview');
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [selectedEvent, setSelectedEvent] = useState<AdminEvent | null>(null);
   const [savingEvent, setSavingEvent] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [manualEvent, setManualEvent] = useState<AdminEvent | null>(null);
 
   const isAuthorized = ['admin', 'operaciones'].includes(currentRole);
 
@@ -874,7 +1085,12 @@ export const Dashboard: React.FC = () => {
     setError(null);
     try {
       const data = await fetchEvents();
-      setEvents(data.map(normalizeEvent));
+      const normalized = data.map(normalizeEvent).sort((a, b) => {
+        const da = new Date(`${a.date || '1970-01-01'}T${a.time || '00:00'}:00`).getTime();
+        const db = new Date(`${b.date || '1970-01-01'}T${b.time || '00:00'}:00`).getTime();
+        return db - da;
+      });
+      setEvents(normalized);
     } catch (err) {
       setError(errorMessageFrom(err, 'No se pudieron cargar los eventos.'));
     } finally {
@@ -991,10 +1207,11 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <TabsList className="grid grid-cols-3 w-full sm:w-auto">
+            <TabsList className="grid grid-cols-4 w-full sm:w-auto">
               <TabsTrigger value="overview">Resumen</TabsTrigger>
               <TabsTrigger value="events">Eventos</TabsTrigger>
               <TabsTrigger value="sales">Ventas</TabsTrigger>
+              <TabsTrigger value="analytics">Analíticas</TabsTrigger>
             </TabsList>
             <Button onClick={openCreateEvent} className="sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
@@ -1207,10 +1424,22 @@ export const Dashboard: React.FC = () => {
                           <div className="text-sm font-semibold">{occupancy}%</div>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <Button size="sm" variant="outline" onClick={() => openEditEvent(event)}>
                           <Pencil className="h-4 w-4 mr-2" />
                           Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setManualEvent(event);
+                            setManualDialogOpen(true);
+                          }}
+                          disabled={event.totalCapacity === 0 || event.totalCapacity - event.totalSold <= 0}
+                        >
+                          <Ticket className="h-4 w-4 mr-2" />
+                          Venta manual
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -1348,6 +1577,10 @@ export const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <AnalyticsDashboard />
+        </TabsContent>
       </Tabs>
 
       <EventFormDialog
@@ -1362,6 +1595,16 @@ export const Dashboard: React.FC = () => {
         }}
         onSubmit={handleSubmitEvent}
         saving={savingEvent}
+      />
+
+      <ManualTicketDialog
+        open={manualDialogOpen}
+        event={manualEvent}
+        onOpenChange={(open) => {
+          setManualDialogOpen(open);
+          if (!open) setManualEvent(null);
+        }}
+        onCreated={loadEvents}
       />
     </div>
   );

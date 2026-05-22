@@ -47,6 +47,13 @@ export const Agenda: React.FC = () => {
   }, [events, filter]);
   const sortedEvents = useMemo(() => sortEvents(filteredEvents, sortBy), [filteredEvents, sortBy]);
   const featuredEvents = useMemo(() => (events || []).filter((event) => event.featured), [events]);
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    (events || []).forEach((event) => {
+      if (event.category) set.add(event.category);
+    });
+    return Array.from(set).sort();
+  }, [events]);
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-6">
@@ -84,15 +91,14 @@ export const Agenda: React.FC = () => {
         {/* Filtro */}
         <div className="flex gap-2">
           <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filtrar por" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="Musica">Musica</SelectItem>
-              <SelectItem value="Arte">Arte</SelectItem>
-              <SelectItem value="Taller">Talleres</SelectItem>
-              <SelectItem value="Entretenimiento">Entretenimiento</SelectItem>
+              <SelectItem value="all">Todas las categorías</SelectItem>
+              {availableCategories.map((cat) => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
