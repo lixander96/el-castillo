@@ -25,6 +25,9 @@ export class TicketType {
   sold: number;
 
   @Column({ type: 'int', default: 0 })
+  manualSold: number;
+
+  @Column({ type: 'int', default: 0 })
   available: number;
 
   @Column({ type: 'simple-json', nullable: true })

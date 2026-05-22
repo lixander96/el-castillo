@@ -7,9 +7,9 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Calendar, Clock, MapPin, Users, ShoppingCart, QrCode, Ticket, LogIn } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, ShoppingCart, QrCode, Ticket, LogIn, Share2, Copy, MessageCircle, Gift } from 'lucide-react';
 import { TicketSelector } from './TicketSelector';
-import { checkoutPro, createOrder, fetchPublicCoupon } from './../lib/api';
+import { checkoutPro, createOrder, fetchPublicCoupon, CouponPublicInfo } from './../lib/api';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 
@@ -34,6 +34,23 @@ const priceOf = (ticket: TicketType) => {
 
 const roundPrice = (value: number) => Math.round(Number(value) * 100) / 100;
 const formatCurrency = (value: number) => roundPrice(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const isEventOver = (event: Event) => {
+    if (event.status === 'ended' || event.status === 'cancelled') return true;
+    try {
+        const eventDateTime = new Date(`${event.date}T${event.time || '23:59'}:00`);
+        if (!Number.isNaN(eventDateTime.getTime()) && eventDateTime.getTime() < Date.now()) {
+            return true;
+        }
+    } catch { /* ignore */ }
+    return false;
+};
+
+const buildEventShareUrl = (event: Event) => {
+    if (typeof window === 'undefined') return '';
+    const origin = window.location.origin.replace(/\/$/, '');
+    return event.slug ? `${origin}/evento/${event.slug}` : `${origin}/?event=${event.id}`;
+};
 
 
 const EventModal: FC<EventModalProps> = ({event, setShowLoginModal, open, onOpenChange}) => {
@@ -179,6 +196,11 @@ const EventModal: FC<EventModalProps> = ({event, setShowLoginModal, open, onOpen
                 toast.success(`Cupon aplicado: -$${formatCurrency(discountApplied)}`);
             }
             const checkout = await checkoutPro(order.id);
+            if ((checkout as any)?.free) {
+                toast.success('Invitación de Honor confirmada. Te enviamos los tickets por email.');
+                window.location.href = (checkout as any).init_point;
+                return;
+            }
             const initPoint = checkout.init_point || checkout.sandbox_init_point;
             if (!initPoint) {
                 throw new Error('No se recibio el enlace de pago de Mercado Pago');
@@ -190,8 +212,45 @@ const EventModal: FC<EventModalProps> = ({event, setShowLoginModal, open, onOpen
             setIsProcessingPayment(false);
         }
     };
-    const canPurchase = ['visitante', 'acceso', 'cliente', 'operaciones', 'admin'].includes(currentRole);
+    const canPurchase = ['visitante', 'acceso', 'cliente', 'operaciones', 'admin', 'promotor'].includes(currentRole);
     const isPublic = currentRole === 'publico';
+    const eventFinished = isEventOver(event);
+    const shareUrl = useMemo(() => buildEventShareUrl(event), [event]);
+    const shareMessage = useMemo(() => {
+        const dateLabel = event.date ? new Date(`${event.date}T00:00:00`).toLocaleDateString('es-AR') : '';
+        return `${event.title}${dateLabel ? ` · ${dateLabel}` : ''}${event.time ? ` ${event.time}hs` : ''}\n${shareUrl}`;
+    }, [event, shareUrl]);
+
+    const handleShareNative = async () => {
+        try {
+            if (typeof navigator !== 'undefined' && (navigator as any).share) {
+                await (navigator as any).share({
+                    title: event.title,
+                    text: shareMessage,
+                    url: shareUrl,
+                });
+            } else {
+                await navigator.clipboard?.writeText(shareUrl);
+                toast.success('Link copiado al portapapeles');
+            }
+        } catch (err) {
+            // user cancelled
+        }
+    };
+
+    const handleShareWhatsApp = () => {
+        const url = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
+    const handleCopyLink = async () => {
+        try {
+            await navigator.clipboard?.writeText(shareUrl);
+            toast.success('Link copiado al portapapeles');
+        } catch {
+            toast.error('No se pudo copiar el link');
+        }
+    };
     return (
         <Dialog
             open={open}
@@ -240,18 +299,18 @@ const EventModal: FC<EventModalProps> = ({event, setShowLoginModal, open, onOpen
                                     </div>
                                 </div>
                             </div>
-                            {isPublic && event.status === 'upcoming' && (
+                            {!eventFinished && isPublic && event.status === 'upcoming' && (
                                 <div className="space-y-3">
                                     <Button className="w-full" size="lg" onClick={() => setShowLoginModal(true)}>
                                         <LogIn className="h-4 w-4 mr-2" />
-                                        Inicia sesion para comprar - Desde 
+                                        Inicia sesión para comprar
                                     </Button>
                                     <p className="text-xs text-center text-muted-foreground">
                                         Necesitas una cuenta para comprar tickets.
                                     </p>
                                 </div>
                             )}
-                            {canPurchase && event.status === 'upcoming' && (
+                            {!eventFinished && canPurchase && event.status === 'upcoming' && (
                                 <Button
                                     className="w-full"
                                     size="lg"
@@ -261,14 +320,33 @@ const EventModal: FC<EventModalProps> = ({event, setShowLoginModal, open, onOpen
                                     }}
                                 >
                                     <ShoppingCart className="h-4 w-4 mr-2" />
-                                    Comprar tickets - Desde 
+                                    Comprar tickets {minSelectedEventPrice > 0 ? `- Desde $${minSelectedEventPrice.toLocaleString()}` : ''}
                                 </Button>
                             )}
-                            {event.status === 'sold-out' && (
+                            {!eventFinished && event.status === 'sold-out' && (
                                 <Button disabled className="w-full" size="lg">
                                     Agotado
                                 </Button>
                             )}
+                            {eventFinished && (
+                                <Button disabled className="w-full" size="lg" variant="outline">
+                                    {event.status === 'cancelled' ? 'Evento cancelado' : 'Evento finalizado'}
+                                </Button>
+                            )}
+                            <div className="flex flex-wrap gap-2">
+                                <Button type="button" variant="outline" size="sm" className="flex-1" onClick={handleShareNative}>
+                                    <Share2 className="h-4 w-4 mr-2" />
+                                    Compartir
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" className="flex-1" onClick={handleShareWhatsApp}>
+                                    <MessageCircle className="h-4 w-4 mr-2" />
+                                    WhatsApp
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" className="flex-1" onClick={handleCopyLink}>
+                                    <Copy className="h-4 w-4 mr-2" />
+                                    Copiar link
+                                </Button>
+                            </div>
                         </div>
                     </>
                 )}
@@ -390,17 +468,31 @@ const EventModal: FC<EventModalProps> = ({event, setShowLoginModal, open, onOpen
                                     </div>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-blue-50 border-blue-200 dark:bg-blue-900/20">
-                                <CardContent className="py-4 flex items-start gap-3">
-                                    <QrCode className="h-6 w-6 text-blue-600" />
-                                    <div>
-                                        <h4 className="font-medium text-blue-900 dark:text-blue-100">Pago seguro con Mercado Pago</h4>
-                                        <p className="text-sm text-blue-700 dark:text-blue-200">
-                                            Seras redirigido a la pasarela de Mercado Pago para completar el pago con tarjeta.
-                                        </p>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                            {totalWithDiscount > 0 ? (
+                                <Card className="bg-blue-50 border-blue-200 dark:bg-blue-900/20">
+                                    <CardContent className="py-4 flex items-start gap-3">
+                                        <QrCode className="h-6 w-6 text-blue-600" />
+                                        <div>
+                                            <h4 className="font-medium text-blue-900 dark:text-blue-100">Pago seguro con Mercado Pago</h4>
+                                            <p className="text-sm text-blue-700 dark:text-blue-200">
+                                                Serás redirigido a la pasarela de Mercado Pago para completar el pago con tarjeta.
+                                            </p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <Card className="bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20">
+                                    <CardContent className="py-4 flex items-start gap-3">
+                                        <Gift className="h-6 w-6 text-emerald-600" />
+                                        <div>
+                                            <h4 className="font-medium text-emerald-900 dark:text-emerald-100">Invitación de Honor</h4>
+                                            <p className="text-sm text-emerald-700 dark:text-emerald-200">
+                                                Tu entrada es cortesía. Confirmá para que te enviemos los tickets por email.
+                                            </p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
                             <div className="flex gap-3">
                                 <Button variant="outline" onClick={() => setPurchaseStep('tickets')} className="flex-1">
                                     Volver
@@ -411,7 +503,9 @@ const EventModal: FC<EventModalProps> = ({event, setShowLoginModal, open, onOpen
                                     onClick={handlePayment}
                                     disabled={isProcessingPayment}
                                 >
-                                    {isProcessingPayment ? 'Redirigiendo a Mercado Pago...' : 'Proceder al pago'}
+                                    {isProcessingPayment
+                                        ? (totalWithDiscount > 0 ? 'Redirigiendo a Mercado Pago...' : 'Procesando...')
+                                        : (totalWithDiscount > 0 ? 'Proceder al pago' : 'Confirmar invitación')}
                                 </Button>
                             </div>
                         </div>

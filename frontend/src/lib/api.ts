@@ -591,6 +591,7 @@ export interface TicketTypePayload {
   price: number;
   total: number;
   sold?: number;
+  manualSold?: number;
   available?: number;
   perks?: string[];
 }
@@ -619,6 +620,22 @@ export type EventResponse = Event & {
 
 export async function fetchEvents() {
   const { data } = await api.get<EventResponse[]>('/events');
+  return data;
+}
+
+export async function fetchEventBySlug(slug: string) {
+  const { data } = await api.get<EventResponse>(`/events/slug/${encodeURIComponent(slug)}`);
+  return data;
+}
+
+export interface ManualOrderPayload {
+  buyerEmail?: string;
+  notes?: string;
+  items: { ticketTypeId: string; eventId: string; quantity: number }[];
+}
+
+export async function createManualOrder(payload: ManualOrderPayload) {
+  const { data } = await api.post('/orders/manual', payload);
   return data;
 }
 

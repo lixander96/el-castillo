@@ -19,6 +19,12 @@ export class Order {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   totalAmount: number;
 
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  subtotalAmount: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  discountAmount: number;
+
   @Column({ nullable: true })
   externalReference: string | null; // MP external_reference
 
@@ -35,7 +41,7 @@ export class Order {
   payments: Payment[];
 
   @ManyToOne(() => Coupon, coupon => coupon.orders, { nullable: true })
-  coupon: Coupon
+  coupon: Coupon | null;
 
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;

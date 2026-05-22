@@ -100,13 +100,10 @@ const roleLabels: Record<UserRole, string> = {
 
 const roleOptions: UserRole[] = [
   'admin',
-  'operaciones',
   'promotor',
   'cliente',
-  'artista',
   'acceso',
   'visitante',
-  'publico',
 ];
 
 const UsersManager: React.FC = () => {

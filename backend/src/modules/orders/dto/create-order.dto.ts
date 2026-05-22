@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsEmail, IsOptional, ValidateNested, IsUUID, IsInt, Min } from 'class-validator';
+import { IsArray, IsEmail, IsOptional, IsString, ValidateNested, IsUUID, IsInt, Min } from 'class-validator';
 
 class OrderItemDto {
   @ApiProperty({ description: 'Identificador del tipo de ticket seleccionado', format: 'uuid' })
@@ -22,6 +22,11 @@ export class CreateOrderDto {
   @IsOptional()
   @IsEmail()
   buyerEmail?: string;
+
+  @ApiPropertyOptional({ description: 'Código de cupón a aplicar' })
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
 
   @ApiProperty({ description: 'Lista de items solicitados', type: [OrderItemDto] })
   @ValidateNested({ each: true })

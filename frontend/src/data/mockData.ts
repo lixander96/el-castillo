@@ -17,6 +17,7 @@ export interface TicketType {
   price: number;
   available: number;
   sold: number;
+  manualSold?: number;
   total: number;
   perks?: string[];
 }
@@ -24,6 +25,7 @@ export interface TicketType {
 export interface Event {
   id: string;
   title: string;
+  slug?: string | null;
   description: string;
   date: string;
   time: string;
@@ -35,8 +37,8 @@ export interface Event {
   image: string;
   category: string;
   ticketTypes: TicketType[];
-  organizerId?: string; // ID del cliente organizador
-  featured?: boolean; // Para eventos destacados en carousel
+  organizerId?: string;
+  featured?: boolean;
 }
 
 export interface Space {

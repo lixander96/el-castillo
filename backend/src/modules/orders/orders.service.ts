@@ -8,6 +8,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { Event } from '../events/entities/event.entity';
 import { TicketType } from '../events/entities/ticket-type.entity';
 import { Ticket } from './entities/ticket.entity';
+import { Coupon, CouponType } from '../coupons/entities/coupon.entity';
 import { MailerService } from '../../mailer/mailer.service';
 import { TicketPdfService } from './ticket-pdf.service';
 import { EnvironmentVariables } from '../../config/config.configuration';
@@ -33,6 +34,7 @@ export class OrdersService {
     @InjectRepository(Event) private readonly eventsRepo: Repository<Event>,
     @InjectRepository(TicketType) private readonly ticketRepo: Repository<TicketType>,
     @InjectRepository(Ticket) private readonly ticketsRepo: Repository<Ticket>,
+    @InjectRepository(Coupon) private readonly couponsRepo: Repository<Coupon>,
     private readonly ds: DataSource,
     private readonly mailer: MailerService,
     private readonly ticketPdf: TicketPdfService,
@@ -41,8 +43,9 @@ export class OrdersService {
 
   async create(dto: CreateOrderDto) {
     return this.ds.transaction(async (manager) => {
-      let total = 0;
+      let subtotal = 0;
       const items: OrderItem[] = [];
+      const eventIdsInOrder = new Set<string>();
 
       for (const it of dto.items) {
         const tt = await manager.getRepository(TicketType).findOne({
@@ -52,35 +55,159 @@ export class OrdersService {
         if (!tt || tt.event.id !== it.eventId) throw new BadRequestException('TicketType no válido');
         if (tt.available < it.quantity) throw new BadRequestException('Sin stock suficiente');
 
-        const subtotal = Number(tt.price) * it.quantity;
-        total += subtotal;
+        const itemSubtotal = Number(tt.price) * it.quantity;
+        subtotal += itemSubtotal;
+        eventIdsInOrder.add(tt.event.id);
 
         const item = manager.getRepository(OrderItem).create({
           ticketType: tt,
           event: tt.event,
           quantity: it.quantity,
           unitPrice: Number(tt.price),
-          subtotal,
+          subtotal: itemSubtotal,
         });
         items.push(item);
 
         // reservar stock (optimista)
         tt.sold += it.quantity;
-        tt.available = tt.total - tt.sold;
+        tt.available = Math.max(0, tt.total - tt.sold - Number(tt.manualSold ?? 0));
         await manager.getRepository(TicketType).save(tt);
       }
+
+      // Aplicar cupon si corresponde
+      let coupon: Coupon | null = null;
+      let discount = 0;
+      const normalizedCode = dto.couponCode?.trim().toUpperCase();
+      if (normalizedCode) {
+        coupon = await manager.getRepository(Coupon).findOne({
+          where: { code: normalizedCode, isActive: true },
+          relations: ['allowedEvents'],
+        });
+        if (!coupon) {
+          throw new BadRequestException('Cupón inválido o inactivo');
+        }
+        const allowed = coupon.allowedEvents ?? [];
+        if (allowed.length > 0) {
+          const allowedIds = new Set(allowed.map((e) => e.id));
+          for (const eid of eventIdsInOrder) {
+            if (!allowedIds.has(eid)) {
+              throw new BadRequestException('El cupón no aplica a este evento');
+            }
+          }
+        }
+        discount = this.computeDiscount(coupon, subtotal);
+      }
+
+      const total = Math.max(0, this.round2(subtotal - discount));
 
       const order = manager.getRepository(Order).create({
         buyerEmail: dto.buyerEmail || null,
         status: 'initiated',
+        subtotalAmount: this.round2(subtotal),
+        discountAmount: this.round2(discount),
         totalAmount: total,
         externalReference: null,
         preferenceId: null,
+        coupon: coupon ?? undefined,
         items,
       });
 
       return manager.getRepository(Order).save(order);
     });
+  }
+
+  private computeDiscount(coupon: Coupon, subtotal: number): number {
+    if (subtotal <= 0) return 0;
+    const value = Number(coupon.value ?? 0);
+    if (coupon.type === CouponType.FREE) return subtotal;
+    if (coupon.type === CouponType.PERCENTAGE) {
+      return Math.min(subtotal, this.round2(subtotal * (value / 100)));
+    }
+    return Math.min(subtotal, this.round2(value));
+  }
+
+  private round2(value: number): number {
+    return Math.round(Number(value) * 100) / 100;
+  }
+
+  async createManualOrder(params: {
+    buyerEmail?: string;
+    notes?: string;
+    items: { ticketTypeId: string; eventId: string; quantity: number }[];
+  }) {
+    return this.ds.transaction(async (manager) => {
+      let subtotal = 0;
+      const items: OrderItem[] = [];
+
+      for (const it of params.items) {
+        const tt = await manager.getRepository(TicketType).findOne({
+          where: { id: it.ticketTypeId },
+          relations: ['event'],
+        });
+        if (!tt || tt.event.id !== it.eventId) throw new BadRequestException('TicketType no válido');
+        if (tt.available < it.quantity) throw new BadRequestException(`Sin stock para "${tt.name}"`);
+
+        const itemSubtotal = Number(tt.price) * it.quantity;
+        subtotal += itemSubtotal;
+
+        const item = manager.getRepository(OrderItem).create({
+          ticketType: tt,
+          event: tt.event,
+          quantity: it.quantity,
+          unitPrice: Number(tt.price),
+          subtotal: itemSubtotal,
+        });
+        items.push(item);
+
+        tt.manualSold = Number(tt.manualSold ?? 0) + it.quantity;
+        tt.available = Math.max(0, tt.total - tt.sold - tt.manualSold);
+        await manager.getRepository(TicketType).save(tt);
+      }
+
+      const order = manager.getRepository(Order).create({
+        buyerEmail: params.buyerEmail || null,
+        status: 'approved',
+        subtotalAmount: this.round2(subtotal),
+        discountAmount: 0,
+        totalAmount: this.round2(subtotal),
+        paymentMethod: 'manual',
+        externalReference: null,
+        preferenceId: null,
+        items,
+      });
+      const savedOrder = await manager.getRepository(Order).save(order);
+
+      // Generar tickets
+      const ticketsToSave: Ticket[] = [];
+      for (const item of savedOrder.items) {
+        for (let i = 0; i < item.quantity; i += 1) {
+          ticketsToSave.push(
+            manager.getRepository(Ticket).create({
+              orderItem: item,
+              code: randomUUID(),
+              redeemedAt: null,
+            }),
+          );
+        }
+      }
+      const savedTickets = ticketsToSave.length
+        ? await manager.getRepository(Ticket).save(ticketsToSave)
+        : [];
+
+      return { order: savedOrder, tickets: savedTickets };
+    });
+  }
+
+  async finalizeFreeOrder(orderId: string) {
+    const order = await this.findById(orderId);
+    if (Number(order.totalAmount) > 0) {
+      throw new BadRequestException('La orden no es gratuita');
+    }
+    if (order.status === 'approved') {
+      return order;
+    }
+    await this.ordersRepo.update({ id: orderId }, { paymentMethod: 'free', externalReference: orderId });
+    return this.generateTicketsForApprovedOrder(orderId);
   }
 
   async findById(id: string) {
@@ -106,7 +233,7 @@ export class OrdersService {
         const tt = await manager.getRepository(TicketType).findOne({ where: { id: it.ticketType.id } });
         if (!tt) continue;
         tt.sold = Math.max(0, tt.sold - it.quantity);
-        tt.available = tt.total - tt.sold;
+        tt.available = Math.max(0, tt.total - tt.sold - Number(tt.manualSold ?? 0));
         await manager.getRepository(TicketType).save(tt);
       }
       order.status = 'rejected';

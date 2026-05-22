@@ -12,6 +12,7 @@ import UsersManager from './components/modules/UsersManager';
 import SiteSettingsManager from './components/modules/SiteSettingsManager';
 import Access from './components/Access';
 import AccessCheckIn from './pages/AccessCheckIn';
+import EventPage from './pages/EventPage';
 
 const Routes: FC = () => {
   return (
@@ -20,6 +21,7 @@ const Routes: FC = () => {
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/" element={<App />} >
           <Route index element={<Agenda />} />
+          <Route path="evento/:slug" element={<EventPage />} />
           <Route path="access" element={<Private><Access /></Private>} />
           <Route path="perfil" element={<Perfil />} />
           <Route path="dashboard" element={<Private><Dashboard /></Private>} />
