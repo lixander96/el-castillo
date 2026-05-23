@@ -1,11 +1,11 @@
-name: ${COMPOSE_PROJECT_NAME:-el-castillo}
+name: ${COMPOSE_PROJECT_NAME:-el-castillo}-local
 
 # =====================================================================
-# Produccion detras de Traefik (TLS + Let's Encrypt en el contenedor
-# Traefik que corre aparte y expone la red externa `traefik-proxy`).
-#
-# Para correr en LOCAL sin Traefik usa el archivo standalone:
+# Desarrollo LOCAL sin Traefik. Publica el frontend en el host y rutea
+# /api y /uploads al backend via nginx (mismo esquema path-based de
+# siempre). Levantar con:
 #   docker compose -f docker-compose.local.yml up -d --build
+# Frontend: http://localhost  (o FRONTEND_PORT)
 # =====================================================================
 
 services:
@@ -19,6 +19,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    # Descomenta para conectarte con psql/DBeaver desde el host.
+    # ports:
+    #   - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -26,7 +29,6 @@ services:
       retries: 5
     networks:
       - app-net
-    # La DB queda SOLO en la red interna: nunca se expone a Traefik ni al host.
 
   backend:
     build:
@@ -40,7 +42,6 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      # DB (apunta al servicio "db" de la red interna)
       TYPEORM_CONNECTION: postgres
       TYPEORM_HOST: db
       TYPEORM_PORT: 5432
@@ -48,75 +49,55 @@ services:
       TYPEORM_USERNAME: ${POSTGRES_USER}
       TYPEORM_PASSWORD: ${POSTGRES_PASSWORD}
       TYPEORM_SYNCHRONIZE: ${TYPEORM_SYNCHRONIZE:-true}
-      # Auth / JWT
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3600s}
-      # Mailer
       MAILER_HOST: ${MAILER_HOST}
       MAILER_PORT: ${MAILER_PORT}
       MAILER_USER: ${MAILER_USER}
       MAILER_PASS: ${MAILER_PASS}
-      # WhatsApp
       WHATSAPP_TOKEN: ${WHATSAPP_TOKEN}
       WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID}
-      # Google OAuth
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
-      # Mercado Pago (app OAuth global de la plataforma)
       MP_OAUTH_CLIENT_ID: ${MP_OAUTH_CLIENT_ID}
       MP_OAUTH_CLIENT_SECRET: ${MP_OAUTH_CLIENT_SECRET}
-      # URLs publicas
-      FRONTEND_URL: ${FRONTEND_URL}
-      BACKEND_URL: ${BACKEND_URL}
-      BASE_PUBLIC_URL: ${BASE_PUBLIC_URL}
-      # Uploads (volumen persistente)
+      # En local forzamos URLs localhost (ignoramos las de prod del .env) para
+      # que CORS y las URLs de uploads funcionen sin tocar nada. Asume el
+      # frontend en el puerto 80; ajusta si cambias FRONTEND_PORT.
+      FRONTEND_URL: http://localhost
+      BACKEND_URL: http://localhost
+      BASE_PUBLIC_URL: http://localhost
       MULTER_DEST: /app/uploads
     volumes:
       - backend-uploads:/app/uploads
+    # Descomenta para pegarle al backend directo (sin pasar por nginx).
+    # ports:
+    #   - "${BACKEND_PORT:-3000}:3000"
     networks:
       - app-net
-      - traefik-proxy
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=traefik-proxy
-      # API publicada en api.<dominio>. Sirve /uploads, webhooks de MP,
-      # callbacks de OAuth y Swagger (/documentation).
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-api.rule=Host(`api.${TRAEFIK_HOST}`)
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-api.entrypoints=websecure
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-api.tls.certresolver=letsencrypt
-      - traefik.http.services.${COMPOSE_PROJECT_NAME}-api.loadbalancer.server.port=3000
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Horneado en build time. En este esquema apunta al subdominio del backend.
-        VITE_API_URL: ${VITE_API_URL}
+        # En local SIEMPRE path-based via nginx (ignora el VITE_API_URL del
+        # .env, que apunta al subdominio de prod).
+        VITE_API_URL: /api
     container_name: ${COMPOSE_PROJECT_NAME:-el-castillo}-frontend
     restart: unless-stopped
     depends_on:
       - backend
-    # Sin `ports`: Traefik publica este servicio en el dominio raiz.
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
     networks:
       - app-net
-      - traefik-proxy
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=traefik-proxy
-      # Frontend (SPA + nginx) publicado en el dominio raiz del proyecto.
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.rule=Host(`${TRAEFIK_HOST}`)
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.entrypoints=websecure
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls.certresolver=letsencrypt
-      - traefik.http.services.${COMPOSE_PROJECT_NAME}.loadbalancer.server.port=80
 
 networks:
   app-net:
     driver: bridge
     name: ${COMPOSE_PROJECT_NAME:-el-castillo}-net
-  traefik-proxy:
-    external: true
 
 volumes:
   postgres-data:
