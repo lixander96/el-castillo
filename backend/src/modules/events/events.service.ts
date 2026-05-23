@@ -20,6 +20,14 @@ const slugify = (value: string) =>
     .replace(/-+/g, '-')
     .slice(0, 180);
 
+const escapeHtml = (input: string) =>
+  String(input ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 @Injectable()
 export class EventsService {
   constructor(
@@ -45,6 +53,48 @@ export class EventsService {
     if (!event) throw new NotFoundException('Event not found');
     await this.hydrateSalesData([event]);
     return event;
+  }
+
+  // HTML con meta tags Open Graph para previsualizaciones en redes (WhatsApp,
+  // etc). Lo usan el endpoint /api/events/og/:slug y el handler de /evento/:slug.
+  async buildOgHtml(slug: string): Promise<string> {
+    const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+    const backendUrl = (process.env.BACKEND_URL || '').replace(/\/$/, '');
+    const eventUrl = `${frontendUrl}/evento/${encodeURIComponent(slug)}`;
+    const event = await this.findBySlug(slug);
+    const title = escapeHtml(event.title);
+    const description = escapeHtml(
+      event.description?.slice(0, 240) || `${event.title} en ${event.space}`,
+    );
+    const rawImage = event.image || '';
+    let image = rawImage;
+    if (rawImage && !/^https?:/i.test(rawImage)) {
+      image = `${backendUrl}${rawImage.startsWith('/') ? '' : '/'}${rawImage}`;
+    }
+    const dateLabel =
+      event.date && event.time ? `${event.date} · ${event.time} hs` : event.date || '';
+    return `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>${title}</title>
+<meta name="description" content="${description}" />
+<meta property="og:type" content="event" />
+<meta property="og:title" content="${title}" />
+<meta property="og:description" content="${escapeHtml(dateLabel ? `${dateLabel} - ${event.space || ''}` : description)}" />
+<meta property="og:url" content="${escapeHtml(eventUrl)}" />
+${image ? `<meta property="og:image" content="${escapeHtml(image)}" />` : ''}
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="${title}" />
+<meta name="twitter:description" content="${escapeHtml(dateLabel)}" />
+${image ? `<meta name="twitter:image" content="${escapeHtml(image)}" />` : ''}
+<meta http-equiv="refresh" content="0; url=${escapeHtml(eventUrl)}" />
+</head>
+<body>
+<p>Redirigiendo a <a href="${escapeHtml(eventUrl)}">${title}</a>...</p>
+<script>window.location.replace(${JSON.stringify(eventUrl)});</script>
+</body>
+</html>`;
   }
 
   async create(dto: CreateEventDto) {

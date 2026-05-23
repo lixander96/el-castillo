@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { readFileSync } from 'fs';
 
@@ -20,6 +20,13 @@ async function bootstrap() {
   app.enableCors({
     origin: [frontendUrl, 'http://localhost:3001'],
     credentials: true,
+  });
+
+  // La API vive bajo /api (el backend tambien sirve la SPA y /uploads en la
+  // raiz). Se excluye /evento/:slug, que lo maneja OgController en la raiz para
+  // que la URL compartible no lleve /api.
+  app.setGlobalPrefix('api', {
+    exclude: [{ path: 'evento/:slug', method: RequestMethod.GET }],
   });
 
   // Validaciones
@@ -47,7 +54,7 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
 
-  SwaggerModule.setup('documentation', app, document);
+  SwaggerModule.setup('api/documentation', app, document);
 
   await app.listen(AppModule.port);
 }

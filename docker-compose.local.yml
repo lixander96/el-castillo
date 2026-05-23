@@ -1,17 +1,16 @@
-name: ${COMPOSE_PROJECT_NAME:-el-castillo}-local
+name: ${COMPOSE_PROJECT_NAME:-ticket-system}-local
 
 # =====================================================================
-# Desarrollo LOCAL sin Traefik. Publica el frontend en el host y rutea
-# /api y /uploads al backend via nginx (mismo esquema path-based de
-# siempre). Levantar con:
+# Desarrollo LOCAL sin Traefik. Un solo contenedor de app (NestJS) que
+# sirve la SPA + API (/api) + uploads, publicado en el host.
 #   docker compose -f docker-compose.local.yml up -d --build
-# Frontend: http://localhost  (o FRONTEND_PORT)
+# App: http://localhost:3000  (o APP_PORT)
 # =====================================================================
 
 services:
   db:
     image: postgres:16-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-el-castillo}-db
+    container_name: ${COMPOSE_PROJECT_NAME:-ticket-system}-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -30,11 +29,11 @@ services:
     networks:
       - app-net
 
-  backend:
+  app:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-    container_name: ${COMPOSE_PROJECT_NAME:-el-castillo}-backend
+    container_name: ${COMPOSE_PROJECT_NAME:-ticket-system}-app
     restart: unless-stopped
     depends_on:
       db:
@@ -62,42 +61,22 @@ services:
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
       MP_OAUTH_CLIENT_ID: ${MP_OAUTH_CLIENT_ID}
       MP_OAUTH_CLIENT_SECRET: ${MP_OAUTH_CLIENT_SECRET}
-      # En local forzamos URLs localhost (ignoramos las de prod del .env) para
-      # que CORS y las URLs de uploads funcionen sin tocar nada. Asume el
-      # frontend en el puerto 80; ajusta si cambias FRONTEND_PORT.
-      FRONTEND_URL: http://localhost
-      BACKEND_URL: http://localhost
-      BASE_PUBLIC_URL: http://localhost
+      # En local forzamos URLs localhost (ignoramos las de prod del .env).
+      FRONTEND_URL: http://localhost:3000
+      BACKEND_URL: http://localhost:3000/api
+      BASE_PUBLIC_URL: http://localhost:3000/api
       MULTER_DEST: /app/uploads
     volumes:
       - backend-uploads:/app/uploads
-    # Descomenta para pegarle al backend directo (sin pasar por nginx).
-    # ports:
-    #   - "${BACKEND_PORT:-3000}:3000"
-    networks:
-      - app-net
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        # En local SIEMPRE path-based via nginx (ignora el VITE_API_URL del
-        # .env, que apunta al subdominio de prod).
-        VITE_API_URL: /api
-    container_name: ${COMPOSE_PROJECT_NAME:-el-castillo}-frontend
-    restart: unless-stopped
-    depends_on:
-      - backend
     ports:
-      - "${FRONTEND_PORT:-80}:80"
+      - "${APP_PORT:-3000}:3000"
     networks:
       - app-net
 
 networks:
   app-net:
     driver: bridge
-    name: ${COMPOSE_PROJECT_NAME:-el-castillo}-net
+    name: ${COMPOSE_PROJECT_NAME:-ticket-system}-net
 
 volumes:
   postgres-data:
