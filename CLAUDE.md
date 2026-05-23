@@ -7,37 +7,66 @@ Plataforma web para venta de entradas, gestion de eventos, artistas y cobros onl
 - `frontend/` — SPA en React + Vite + Tailwind (Radix UI). Es la app real que se sirve a los usuarios.
 - `backend/` — API en NestJS + TypeORM + Postgres. Maneja auth (JWT + Google OAuth), eventos, ordenes, pagos (Mercado Pago), mailer y WhatsApp.
 - `figma-design/` — **Maquetacion vieja, NO TOCAR.** Es solo un export estatico del diseño original de Figma, no forma parte de la app productiva. No correr build, no incluir en deploys, no usar como referencia de código actual (puede estar desactualizada respecto al frontend real).
-- `docker-compose.yml` + `.env.example` — orquestacion para correr todo el stack (frontend + backend + Postgres) con Docker, listo para VPS.
+- `docker-compose.yml` + `.env.example` — orquestacion del stack (frontend + backend + Postgres) detras de **Traefik** (TLS/Let's Encrypt), listo para VPS multi-cliente.
+- `docker-compose.local.yml` — variante standalone para correr en local sin Traefik (publica puertos al host, ruteo path-based via nginx).
 
 ## Arrancar en local con Docker
 
 ```bash
 cp .env.example .env       # editar credenciales
-docker compose up -d --build
+# en local conviene VITE_API_URL=/api (ver nota abajo)
+docker compose -f docker-compose.local.yml up -d --build
 ```
 
 - Frontend: http://localhost (puerto 80 por defecto, configurable via `FRONTEND_PORT`)
 - Backend: solo accesible via la red interna de Docker, proxeado por nginx en `/api/`
-- Postgres: solo accesible via la red interna (descomenta el `ports:` en `docker-compose.yml` si necesitas conectarte con psql/DBeaver)
+- Postgres: solo accesible via la red interna (descomenta el `ports:` en `docker-compose.local.yml` si necesitas conectarte con psql/DBeaver)
 
-Para apuntar al backend en local sin pasar por nginx, cambia `VITE_API_URL` en `.env` a `http://localhost:3000` y descomenta el publish del puerto del backend en `docker-compose.yml`.
+En local usa `VITE_API_URL=/api`: el frontend llama al backend por el mismo
+dominio y nginx hace el proxy (`/api` y `/uploads`), sin CORS. Para pegarle al
+backend directo, descomenta el publish del puerto del backend en
+`docker-compose.local.yml`.
 
-## Deploy en VPS de Hostinger
+## Deploy en VPS detras de Traefik
+
+El `docker-compose.yml` principal asume que ya tenes un contenedor **Traefik**
+corriendo aparte, con un entrypoint `websecure`, un certresolver `letsencrypt`
+y una red externa llamada `traefik-proxy`. El stack se conecta a esa red y se
+publica por labels (no expone puertos al host).
+
+Arquitectura de dominios (un par por cliente):
+- **Frontend** (SPA + nginx) → `https://${TRAEFIK_HOST}`
+- **Backend** (API, uploads, webhooks, OAuth, Swagger) → `https://api.${TRAEFIK_HOST}`
+
+Pasos:
 
 1. Clonar el repo en el VPS y `cd` al root.
-2. `cp .env.example .env` y completar **todos** los valores reales (DB password, JWT_SECRET, credenciales de Google/MP/SMTP/WhatsApp, URLs publicas con el dominio real).
-3. Apuntar el dominio (Hostinger DNS) al IP del VPS.
-4. Para HTTPS:
-   - **Opcion A (recomendada):** poner nginx o Caddy del **host** delante del contenedor frontend. Setear `FRONTEND_PORT=8080` (o el que prefieras), y el reverse proxy del host termina TLS y proxea a `127.0.0.1:8080`. Certbot/Letsencrypt en el host.
-   - **Opcion B:** Traefik como contenedor adicional (no incluido).
+2. `cp .env.example .env` y completar **todos** los valores reales. Clave:
+   `COMPOSE_PROJECT_NAME` (unico por cliente), `TRAEFIK_HOST` (dominio del
+   front), DB password, JWT_SECRET, creds Google/MP/SMTP/WhatsApp.
+3. Apuntar en el DNS tanto `${TRAEFIK_HOST}` como `api.${TRAEFIK_HOST}` al IP
+   del VPS (dos registros A, o un wildcard).
+4. Asegurarte de que la red externa exista: `docker network create traefik-proxy`
+   (si no la creo ya el stack de Traefik).
 5. `docker compose up -d --build`
 6. Verificar logs: `docker compose logs -f`
 
+> Nota: las rutas del backend en este esquema **no** llevan prefijo `/api`
+> (ese prefijo era del proxy nginx del esquema viejo). Con Traefik el backend
+> esta en la raiz de `api.${TRAEFIK_HOST}`: `/auth/...`, `/events/...`,
+> `/payments/...`, `/uploads/...`, `/documentation`.
+
 ### Variables clave para prod
 
-- `FRONTEND_URL`, `BACKEND_URL`, `BASE_PUBLIC_URL`: URLs publicas con el dominio real (https://).
-- `VITE_API_URL=/api`: deja que el frontend llame al backend por el mismo dominio (nginx hace el proxy).
-- `GOOGLE_CALLBACK_URL`: tiene que coincidir con lo que esta configurado en Google Cloud Console.
+- `COMPOSE_PROJECT_NAME`: nombre del stack. Define el prefijo de los contenedores
+  (`<nombre>-db|backend|frontend`), la red interna (`<nombre>-net`) y los routers
+  de Traefik. Unico por cliente para no colisionar.
+- `TRAEFIK_HOST`: dominio publico del frontend. La API sale en `api.<TRAEFIK_HOST>`.
+- `FRONTEND_URL=https://${TRAEFIK_HOST}` y `BACKEND_URL=BASE_PUBLIC_URL=https://api.${TRAEFIK_HOST}`.
+- `VITE_API_URL=https://api.${TRAEFIK_HOST}`: el frontend llama al subdominio de la
+  API (CORS ya habilita `FRONTEND_URL`). Se hornea en build time.
+- `GOOGLE_CALLBACK_URL=https://api.${TRAEFIK_HOST}/auth/google/callback`: tiene que
+  coincidir con lo configurado en Google Cloud Console (sin `/api`).
 - `TYPEORM_SYNCHRONIZE=false` en prod si ya tenes el esquema estable; pasar a migrations con `npm run migration:run`.
 - `POSTGRES_PASSWORD` y `JWT_SECRET`: regenerarlos antes de prod, **no usar los del ejemplo**.
 
@@ -104,4 +133,4 @@ docker compose exec db psql -U $POSTGRES_USER $POSTGRES_DB   # acceso a la DB
 
 - El backend compila a `dist/src/main.js` (no `dist/main.js`) porque Nest detecta `scripts/` como hermano de `src/` y preserva el árbol. El Dockerfile ya apunta ahí.
 - `frontend/vite.config.ts` tiene aliases con sufijos de version (ej. `vaul@1.1.2 -> vaul`) — son artefactos del export de Figma; no remover sin antes verificar que ningun import los use.
-- El backend expone Swagger en `/documentation` (visible una vez detras del proxy: `https://tu-dominio/api/documentation`).
+- El backend expone Swagger en `/documentation` (con Traefik: `https://api.tu-dominio/documentation`; en local path-based: `https://tu-dominio/api/documentation`).
