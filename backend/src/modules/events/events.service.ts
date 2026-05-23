@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { OrderItem } from '../orders/entities/order-item.entity';
+import { Order } from '../orders/entities/order.entity';
 import { Event } from './entities/event.entity';
 import { TicketType } from './entities/ticket-type.entity';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -112,8 +113,63 @@ export class EventsService {
   }
 
   async remove(id: string) {
-    await this.eventsRepo.delete(id);
-    return { ok: true };
+    const event = await this.eventsRepo.findOne({ where: { id } });
+    if (!event) throw new NotFoundException('Event not found');
+
+    return this.eventsRepo.manager.transaction(async (manager) => {
+      // Proteger ventas reales: si hay ordenes aprobadas, no se puede borrar.
+      const approvedItems = await manager
+        .getRepository(OrderItem)
+        .createQueryBuilder('item')
+        .innerJoin('item.order', 'o')
+        .innerJoin('item.event', 'event')
+        .where('event.id = :id', { id })
+        .andWhere('o.status = :status', { status: 'approved' })
+        .getCount();
+
+      if (approvedItems > 0) {
+        throw new BadRequestException(
+          'No se puede eliminar un evento con entradas vendidas. Cambiá su estado a "Cancelado" para sacarlo de la venta sin perder el registro.',
+        );
+      }
+
+      // Quitar referencias del evento en cupones (tabla intermedia).
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from('coupon_allowed_events')
+        .where('event_id = :id', { id })
+        .execute();
+
+      // Borrar los order items del evento (las ordenes asociadas no estan
+      // aprobadas: carritos abandonados, pendientes o rechazados). Al borrar
+      // el item se eliminan en cascada sus tickets QR.
+      const items = await manager.getRepository(OrderItem).find({
+        where: { event: { id } },
+        relations: ['order'],
+      });
+      const orderIds = new Set<string>();
+      for (const item of items) {
+        if (item.order?.id) orderIds.add(item.order.id);
+      }
+      if (items.length) {
+        await manager.getRepository(OrderItem).remove(items);
+      }
+
+      // Borrar las ordenes que quedaron sin items (cascada borra sus pagos).
+      for (const orderId of orderIds) {
+        const remaining = await manager
+          .getRepository(OrderItem)
+          .count({ where: { order: { id: orderId } } });
+        if (remaining === 0) {
+          await manager.getRepository(Order).delete(orderId);
+        }
+      }
+
+      // Finalmente el evento (cascada elimina sus ticket types).
+      await manager.getRepository(Event).delete(id);
+      return { ok: true };
+    });
   }
 
   private async generateUniqueSlug(title: string, excludeId?: string): Promise<string> {

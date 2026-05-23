@@ -1457,7 +1457,9 @@ export const Dashboard: React.FC = () => {
                               <AlertDialogTitle>Eliminar evento</AlertDialogTitle>
                               <AlertDialogDescription>
                                 Esta acción eliminará de forma permanente el evento "
-                                {event.title}" y todos sus tipos de tickets. ¿Deseas continuar?
+                                {event.title}" y todos sus tipos de tickets. Si el evento ya
+                                tiene entradas vendidas no se podrá borrar: cambiá su estado a
+                                "Cancelado" en su lugar. ¿Deseas continuar?
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
