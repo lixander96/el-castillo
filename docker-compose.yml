@@ -1,17 +1,20 @@
-name: ${COMPOSE_PROJECT_NAME:-el-castillo}
+name: ${COMPOSE_PROJECT_NAME:-ticket-system}
 
 # =====================================================================
 # Produccion detras de Traefik (TLS + Let's Encrypt en el contenedor
 # Traefik que corre aparte y expone la red externa `traefik-proxy`).
 #
-# Para correr en LOCAL sin Traefik usa el archivo standalone:
+# Un solo contenedor de app (NestJS) sirve la API (/api), la SPA del
+# frontend y los uploads (/api/uploads). Todo en un unico dominio.
+#
+# Para correr en LOCAL sin Traefik:
 #   docker compose -f docker-compose.local.yml up -d --build
 # =====================================================================
 
 services:
   db:
     image: postgres:16-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-el-castillo}-db
+    container_name: ${COMPOSE_PROJECT_NAME:-ticket-system}-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -28,11 +31,13 @@ services:
       - app-net
     # La DB queda SOLO en la red interna: nunca se expone a Traefik ni al host.
 
-  backend:
+  app:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-    container_name: ${COMPOSE_PROJECT_NAME:-el-castillo}-backend
+      # El front se hornea con VITE_API_URL=/api (default del Dockerfile):
+      # mismo dominio que la SPA, sin CORS, misma imagen para todos los clientes.
+    container_name: ${COMPOSE_PROJECT_NAME:-ticket-system}-app
     restart: unless-stopped
     depends_on:
       db:
@@ -66,7 +71,7 @@ services:
       # Mercado Pago (app OAuth global de la plataforma)
       MP_OAUTH_CLIENT_ID: ${MP_OAUTH_CLIENT_ID}
       MP_OAUTH_CLIENT_SECRET: ${MP_OAUTH_CLIENT_SECRET}
-      # URLs publicas
+      # URLs publicas (un solo dominio; la API va bajo /api)
       FRONTEND_URL: ${FRONTEND_URL}
       BACKEND_URL: ${BACKEND_URL}
       BASE_PUBLIC_URL: ${BASE_PUBLIC_URL}
@@ -80,41 +85,16 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik-proxy
-      # API publicada en api.<dominio>. Sirve /uploads, webhooks de MP,
-      # callbacks de OAuth y Swagger (/documentation).
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-api.rule=Host(`api.${TRAEFIK_HOST}`)
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-api.entrypoints=websecure
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-api.tls.certresolver=letsencrypt
-      - traefik.http.services.${COMPOSE_PROJECT_NAME}-api.loadbalancer.server.port=3000
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        # Horneado en build time. En este esquema apunta al subdominio del backend.
-        VITE_API_URL: ${VITE_API_URL}
-    container_name: ${COMPOSE_PROJECT_NAME:-el-castillo}-frontend
-    restart: unless-stopped
-    depends_on:
-      - backend
-    # Sin `ports`: Traefik publica este servicio en el dominio raiz.
-    networks:
-      - app-net
-      - traefik-proxy
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=traefik-proxy
-      # Frontend (SPA + nginx) publicado en el dominio raiz del proyecto.
+      # Toda la app (SPA + API + uploads) en un unico dominio.
       - traefik.http.routers.${COMPOSE_PROJECT_NAME}.rule=Host(`${TRAEFIK_HOST}`)
       - traefik.http.routers.${COMPOSE_PROJECT_NAME}.entrypoints=websecure
       - traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls.certresolver=letsencrypt
-      - traefik.http.services.${COMPOSE_PROJECT_NAME}.loadbalancer.server.port=80
+      - traefik.http.services.${COMPOSE_PROJECT_NAME}.loadbalancer.server.port=3000
 
 networks:
   app-net:
     driver: bridge
-    name: ${COMPOSE_PROJECT_NAME:-el-castillo}-net
+    name: ${COMPOSE_PROJECT_NAME:-ticket-system}-net
   traefik-proxy:
     external: true
 

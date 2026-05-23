@@ -45,7 +45,7 @@ export default (): EnvironmentVariables => {
         PORT: process.env['PORT'] ? Number(process.env['PORT']) : 3000,
         TYPEORM_CONNECTION: process.env['TYPEORM_CONNECTION'] as TypeORMConnection || 'postgres',
         TYPEORM_HOST: process.env['TYPEORM_HOST'] || 'localhost',
-        TYPEORM_PORT: +process.env['TYPEORM_HOST'] || 5432,
+        TYPEORM_PORT: +process.env['TYPEORM_PORT'] || 5432,
         TYPEORM_USERNAME: process.env['TYPEORM_USERNAME'] || 'root',
         TYPEORM_PASSWORD: process.env['TYPEORM_PASSWORD'] || '',
         TYPEORM_DATABASE: process.env['TYPEORM_DATABASE'],

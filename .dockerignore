@@ -1,0 +1,20 @@
+# Contexto de build = raiz del repo (Dockerfile unico que arma front + back).
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/test
+.git
+.gitignore
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+npm-debug.log*
+**/.DS_Store
+Thumbs.db
+**/.vscode
+**/.idea
+**/*.zip
+**/README*.md
+figma-design

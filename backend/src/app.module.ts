@@ -27,9 +27,17 @@ import { SiteSettingsModule } from './modules/site-settings/site-settings.module
     CouponsModule,
     OrdersModule,
     PaymentsModule,
+    // Archivos subidos: servidos bajo /api/uploads (coincide con BACKEND_URL
+    // que termina en /api). Va antes que la SPA por ser mas especifico.
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
-      serveRoot: '/uploads',
+      serveRoot: '/api/uploads',
+    }),
+    // SPA (build del frontend copiado a /app/client). Catch-all que sirve
+    // index.html para las rutas del cliente; excluye /api para no pisar la API.
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'client'),
+      exclude: ['/api/(.*)'],
     }),
     MailerModule,
     WhatsappModule,
