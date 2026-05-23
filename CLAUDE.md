@@ -63,8 +63,15 @@ Pasos:
   de Traefik. Unico por cliente para no colisionar.
 - `TRAEFIK_HOST`: dominio publico del frontend. La API sale en `api.<TRAEFIK_HOST>`.
 - `FRONTEND_URL=https://${TRAEFIK_HOST}` y `BACKEND_URL=BASE_PUBLIC_URL=https://api.${TRAEFIK_HOST}`.
-- `VITE_API_URL=https://api.${TRAEFIK_HOST}`: el frontend llama al subdominio de la
-  API (CORS ya habilita `FRONTEND_URL`). Se hornea en build time.
+- `VITE_API_URL=/api` (recomendado, multi-tenant): el frontend llama a `/api`
+  relativo y el nginx del front lo proxea al backend (`backend:3000` en la red
+  interna). La **misma imagen** del front sirve para cualquier dominio, sin
+  rebuild por cliente y sin CORS. Se hornea en build time, asi que si lo
+  cambias hay que rebuildear el front (`docker compose up -d --build frontend`).
+  El subdominio `api.${TRAEFIK_HOST}` sigue siendo la URL publica del backend
+  para uploads (imagenes), webhooks de MP y callbacks de OAuth.
+  Alternativa: `VITE_API_URL=https://api.${TRAEFIK_HOST}` para pegarle directo
+  al subdominio (usa CORS y hay que rebuildear el front por cada dominio).
 - `GOOGLE_CALLBACK_URL=https://api.${TRAEFIK_HOST}/auth/google/callback`: tiene que
   coincidir con lo configurado en Google Cloud Console (sin `/api`).
 - `TYPEORM_SYNCHRONIZE=false` en prod si ya tenes el esquema estable; pasar a migrations con `npm run migration:run`.
